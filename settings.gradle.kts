@@ -1,0 +1,1 @@
+rootProject.name = "delicious_is_1000Kcal"
