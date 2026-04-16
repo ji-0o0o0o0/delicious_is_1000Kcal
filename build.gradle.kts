@@ -35,3 +35,11 @@ tasks.test {
 tasks.named<JavaExec>("run") {
     standardInput = System.`in`
 }
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "com.kakaotracker.Main"
+    }
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
