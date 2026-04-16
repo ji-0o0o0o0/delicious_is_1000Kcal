@@ -72,8 +72,11 @@ public class ImageParser {
             }
 
             if (currentName != null) {
-                boolean hasExercise = line.contains("운") || line.contains("운동");
-                boolean hasDiet = line.contains("식") || line.contains("식단");
+                boolean exerciseFail = line.contains("운실") || line.contains("운동실패") || line.contains("운동 실패");
+                boolean dietFail = line.contains("식실") || line.contains("식단실패") || line.contains("식단 실패");
+
+                boolean hasExercise = !exerciseFail && (line.contains("운") || line.contains("운동"));
+                boolean hasDiet = !dietFail && (line.contains("식") || line.contains("식단"));
 
                 if (hasExercise || hasDiet) {
                     logger.info("파싱 완료 - 날짜: {}, 이름: {}, 운동: {}, 식단: {}", date, currentName, hasExercise, hasDiet);
