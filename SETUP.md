@@ -39,7 +39,10 @@
 
 ### 2-5. 구글 시트 생성 및 공유
 1. 구글 시트 새로 생성
-2. 시트 하단 탭 이름을 `원본기록` 으로 변경
+2. 시트 하단 탭을 아래 3개로 생성
+   - `원본기록`
+   - `주간통계`
+   - `월간통계`
 3. 우상단 **공유** 클릭
 4. JSON 파일 안의 `client_email` 값을 복사해서 편집자 권한으로 공유
 
@@ -53,12 +56,13 @@
 spreadsheet.id=구글시트URL에서복사한ID
 credentials.file=다운로드받은서비스계정키파일명.json
 image.path.prefix=C:/delicious_1000/images/
+scheduler.hour=9
 ```
 
 - `spreadsheet.id`: 구글 시트 URL에서 `/d/` 뒤 `/edit` 앞의 긴 문자열
-  - 예: `https://docs.google.com/spreadsheets/d/**여기가ID**/edit`
 - `credentials.file`: JSON 파일명 (경로 없이 파일명만)
 - `image.path.prefix`: 캡처 이미지 저장 폴더 경로
+- `scheduler.hour`: 스케줄러 실행 시간 (24시간 기준, 예: 9 = 오전 9시)
 
 ---
 
@@ -84,3 +88,20 @@ image.path.prefix=C:/delicious_1000/images/
 ```
 C:\delicious_1000\images\
 ```
+
+---
+
+## 6. Windows 작업 스케줄러 등록
+
+1. `Win + R` → `taskschd.msc` 입력 → 확인
+2. 오른쪽 **기본 작업 만들기** 클릭
+3. 이름: `KakaoTracker` 입력
+4. 트리거: **매일** 선택 → 시작 시간 `오전 9:00`
+5. 동작: **프로그램 시작** 선택
+   - 프로그램: `C:\경로\jdk\bin\java.exe`
+   - 인수: `-jar "C:\프로젝트경로\build\libs\delicious_is_1000Kcal-1.0-SNAPSHOT.jar" scheduler`
+   - 시작 위치: `C:\프로젝트경로`
+6. 마침 클릭
+
+> **주의**: PC가 켜져 있어야 스케줄러가 실행됩니다.
+> 노트북 덮개를 닫고 사용하는 경우 **제어판 → 전원 옵션 → 덮개를 닫을 때 → 아무것도 안 함** 으로 설정하세요.
