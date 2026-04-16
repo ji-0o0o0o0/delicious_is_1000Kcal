@@ -5,34 +5,16 @@ import net.sourceforge.tess4j.TesseractException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ImageParser {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageParser.class);
-    private static List<String> loadMembers(){
-        List<String> members = new ArrayList<>();
-        try (InputStream is = ImageParser.class.getClassLoader().getResourceAsStream("members.txt");
-             BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.trim().isEmpty()) {
-                    members.add(line.trim());
-                }
-            }
-        }catch(Exception e){
-            logger.error("member.txt 읽기 실패: {}", e.getMessage());
-        }
-        return  members;
-    }
 
     public List<CommentRecord> parse(String imagePath, String date){
-        List<String> members = loadMembers();
+        List<String> members = SheetsService.loadMembers();
 
         Tesseract tesseract = new Tesseract();
         String tessDataPath = getClass().getClassLoader().getResource("tessdata").getPath();

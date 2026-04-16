@@ -16,46 +16,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 
 public class SheetsUploader {
 
     private static final Logger logger = LoggerFactory.getLogger(SheetsUploader.class);
     private static final String APPLICATION_NAME = "kakao-tracker";
 
-    private Sheets getSheetsService() throws Exception {
-        Properties props = new Properties();
-        InputStream configIs = SheetsUploader.class.getClassLoader().getResourceAsStream("config.properties");
-        if (configIs == null) {
-            throw new IllegalStateException("config.properties 파일을 찾을 수 없습니다.");
-        }
-        props.load(configIs);
-        String credentialsFile = props.getProperty("credentials.file");
-
-        InputStream credIs = SheetsUploader.class.getClassLoader().getResourceAsStream(credentialsFile);
-        if (credIs == null) {
-            throw new IllegalStateException("credentials 파일을 찾을 수 없습니다: " + credentialsFile);
-        }
-        GoogleCredentials credentials = GoogleCredentials.fromStream(credIs)
-                .createScoped(Collections.singletonList("https://www.googleapis.com/auth/spreadsheets"));
-
-        return new Sheets.Builder(
-                GoogleNetHttpTransport.newTrustedTransport(),
-                GsonFactory.getDefaultInstance(),
-                new HttpCredentialsAdapter(credentials))
-                .setApplicationName(APPLICATION_NAME)
-                .build();
-    }
-
-    private String getSpreadsheetId() throws Exception {
-        Properties props = new Properties();
-        InputStream is = SheetsUploader.class.getClassLoader().getResourceAsStream("config.properties");
-        if (is == null) throw new IllegalStateException("config.properties 파일을 찾을 수 없습니다.");
-        props.load(is);
-        return props.getProperty("spreadsheet.id");
-    }
-
-    // 중복 행의 행 번호 반환 (없으면 -1)
     private int findRowIndex(Sheets service, String spreadsheetId, String date, String name) throws Exception {
         ValueRange response = service.spreadsheets().values()
                 .get(spreadsheetId, "원본기록!A:B")
@@ -64,10 +30,10 @@ public class SheetsUploader {
         List<List<Object>> values = response.getValues();
         if (values == null) return -1;
 
-        for (int i = 0; i < values.size(); i++) {
+        for (int i = 2; i < values.size(); i++) {
             List<Object> row = values.get(i);
             if (row.size() >= 2 && row.get(0).equals(date) && row.get(1).equals(name)) {
-                return i + 1; // 시트는 1부터 시작
+                return i + 1;
             }
         }
         return -1;
@@ -75,11 +41,12 @@ public class SheetsUploader {
 
     public void upload(List<CommentRecord> records) {
         try {
-            Sheets service = getSheetsService();
-            String spreadsheetId = getSpreadsheetId();
+            Sheets service = SheetsService.getService();
+            String spreadsheetId = ConfigLoader.get("spreadsheet.id");
+            SheetsService.ensureRawDataHeader(service, spreadsheetId);
 
             String date = records.isEmpty() ? "" : records.get(0).getDate();
-            List<String> allMembers = loadMembers();
+            List<String> allMembers = SheetsService.loadMembers();
 
             List<String> parsedNames = records.stream()
                     .map(CommentRecord::getName)
@@ -92,7 +59,6 @@ public class SheetsUploader {
                 }
             }
 
-            // members.txt 순서대로 정렬
             records.sort((a, b) -> allMembers.indexOf(a.getName()) - allMembers.indexOf(b.getName()));
 
             for (CommentRecord record : records) {
@@ -107,15 +73,13 @@ public class SheetsUploader {
                 int rowIndex = findRowIndex(service, spreadsheetId, record.getDate(), record.getName());
 
                 if (rowIndex == -1) {
-                    // 신규 추가
                     ValueRange body = new ValueRange().setValues(Collections.singletonList(row));
                     service.spreadsheets().values()
-                            .append(spreadsheetId, "원본기록!A:E", body)
+                            .append(spreadsheetId, "원본기록!A3:E", body)
                             .setValueInputOption("RAW")
                             .execute();
                     logger.info("신규 추가 - {}, {}, {}", record.getDate(), record.getName(), record.getStatus());
                 } else {
-                    // 기존 행 업데이트
                     String range = "원본기록!A" + rowIndex + ":E" + rowIndex;
                     ValueRange body = new ValueRange().setValues(Collections.singletonList(row));
                     service.spreadsheets().values()
@@ -125,23 +89,12 @@ public class SheetsUploader {
                     logger.info("업데이트 - {}, {}, {}", record.getDate(), record.getName(), record.getStatus());
                 }
             }
+            SheetsService.sortByDate(service, spreadsheetId);
+            logger.info("날짜 기준 정렬 완료");
 
         } catch (Exception e) {
             logger.error("업로드 실패: {}", e.getMessage(), e);
         }
     }
 
-    private List<String> loadMembers() {
-        List<String> members = new ArrayList<>();
-        try (InputStream is = SheetsUploader.class.getClassLoader().getResourceAsStream("members.txt");
-             BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.trim().isEmpty()) members.add(line.trim());
-            }
-        } catch (Exception e) {
-            logger.error("members.txt 읽기 실패: {}", e.getMessage(), e);
-        }
-        return members;
-    }
 }
