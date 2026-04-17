@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.LocalDate;
@@ -50,11 +51,27 @@ public class SheetsService {
     // ==================== 멤버 ====================
     public static List<String> loadMembers() {
         List<String> members = new ArrayList<>();
-        try (InputStream is = SheetsService.class.getClassLoader().getResourceAsStream("members.txt");
-             BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.trim().isEmpty()) members.add(line.trim());
+        try {
+            // 외부 members.txt 먼저 찾기
+            String jarDir = new File(ConfigLoader.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI()).getParent();
+            String externalPath = jarDir + "/members.txt";
+            java.io.File externalFile = new java.io.File(externalPath);
+
+            InputStream is;
+            if (externalFile.exists()) {
+                is = new java.io.FileInputStream(externalFile);
+                logger.info("외부 members.txt 로드: {}", externalPath);
+            } else {
+                is = SheetsService.class.getClassLoader().getResourceAsStream("members.txt");
+                logger.info("내부 members.txt 로드");
+            }
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (!line.trim().isEmpty()) members.add(line.trim());
+                }
             }
         } catch (Exception e) {
             logger.error("members.txt 읽기 실패: {}", e.getMessage(), e);

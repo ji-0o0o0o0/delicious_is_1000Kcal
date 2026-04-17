@@ -32,6 +32,7 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
 tasks.named<JavaExec>("run") {
     standardInput = System.`in`
 }
@@ -42,4 +43,17 @@ tasks.jar {
     }
     from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    finalizedBy("copyConfigs")
+}
+
+tasks.register<Copy>("copyConfigs") {
+    from("src/main/resources") {
+        include("config.properties")
+        include("members.txt")
+    }
+    from("src/main/resources/tessdata") {
+        include("kor.traineddata")
+        into("tessdata")
+    }
+    into("build/libs")
 }

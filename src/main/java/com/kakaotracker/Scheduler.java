@@ -24,9 +24,10 @@ public class Scheduler {
 
     public void start() {
         int targetHour = ConfigLoader.getInt("scheduler.hour");
-        logger.info("스케줄러 시작 - 매일 {}시에 실행", targetHour);
+        int targetMinute = ConfigLoader.getInt("scheduler.minute");
+        logger.info("스케줄러 시작 - 매일 {}:{}에 실행", targetHour, targetMinute);
 
-        long initialDelay = calculateInitialDelay(targetHour);
+        long initialDelay = calculateInitialDelay(targetHour,targetMinute);
         logger.info("첫 실행까지 {}분 대기", initialDelay / 60);
 
         scheduler.scheduleAtFixedRate(() -> {
@@ -54,7 +55,9 @@ public class Scheduler {
             LocalDate targetDate = today.minusDays(i);
             String dateStr = targetDate.format(FILE_FMT);
             String formattedDate = targetDate.format(DATE_FMT);
-            String imagePath = imagePathPrefix + dateStr + ".png";
+            String imagePng = imagePathPrefix + dateStr  + ".png";
+            String imageJpg = imagePathPrefix + dateStr  + ".jpg";
+            String imagePath = new File(imagePng).exists() ? imagePng : imageJpg;
             File imageFile = new File(imagePath);
 
             if (imageFile.exists()) {
@@ -87,9 +90,9 @@ public class Scheduler {
         }
     }
 
-    private long calculateInitialDelay(int targetHour) {
+    private long calculateInitialDelay(int targetHour, int targetMinute) {
         LocalTime now = LocalTime.now();
-        LocalTime target = LocalTime.of(targetHour, 0);
+        LocalTime target = LocalTime.of(targetHour, targetMinute);
         long secondsUntilTarget = now.until(target, ChronoUnit.SECONDS);
         if (secondsUntilTarget < 0) secondsUntilTarget += 86400;
         return secondsUntilTarget;

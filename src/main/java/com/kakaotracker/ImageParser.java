@@ -13,13 +13,36 @@ public class ImageParser {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageParser.class);
 
-    public List<CommentRecord> parse(String imagePath, String date){
+    public List<CommentRecord> parse(String imagePath, String date) {
         List<String> members = SheetsService.loadMembers();
 
         Tesseract tesseract = new Tesseract();
-        String tessDataPath = getClass().getClassLoader().getResource("tessdata").getPath();
+        String tessDataPath;
+        try {
+            File jarFile = new File(ImageParser.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI());
+
+            if (jarFile.getName().endsWith(".jar")) {
+                tessDataPath = jarFile.getParent() + "/tessdata";
+            } else {
+                tessDataPath = getClass().getClassLoader().getResource("tessdata").getPath();
+                if (tessDataPath.startsWith("/")) {
+                    tessDataPath = tessDataPath.substring(1);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("tessdata 경로 설정 실패: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
+
         if (tessDataPath.startsWith("/")) {
             tessDataPath = tessDataPath.substring(1);
+        }
+        logger.info("tessdata 경로: {}", tessDataPath);
+        File tessDataDir = new File(tessDataPath);
+        if (!tessDataDir.exists()) {
+            logger.error("tessdata 폴더를 찾을 수 없습니다: {}", tessDataPath);
+            return new ArrayList<>();
         }
         tesseract.setDatapath(tessDataPath);
         tesseract.setLanguage("kor");

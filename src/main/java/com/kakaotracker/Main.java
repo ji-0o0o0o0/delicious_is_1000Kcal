@@ -3,6 +3,7 @@ package com.kakaotracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.List;
 import java.util.Scanner;
 
@@ -15,16 +16,21 @@ public class Main {
         if (args.length > 0 && args[0].equals("test")) {
             logger.info("테스트 모드로 실행");
             new Scheduler().runNow();
-
+            return;
+        }
+        // 주간 통계 테스트: java -jar kakao-tracker.jar weekly
+        if (args.length > 0 && args[0].equals("weekly")) {
             logger.info("주간 통계 테스트 모드");
             new WeeklyStatsUploader().uploadWeeklyStats();
-
-            logger.info("월간 통계 테스트 모드");
-            new MonthlyStatsUploader().uploadMonthlyStats();
-
             return;
         }
 
+        // 월간 통계 테스트: java -jar kakao-tracker.jar monthly
+        if (args.length > 0 && args[0].equals("monthly")) {
+            logger.info("월간 통계 테스트 모드");
+            new MonthlyStatsUploader().uploadMonthlyStats();
+            return;
+        }
         // 스케줄러 모드: java -jar kakao-tracker.jar scheduler
         if (args.length > 0 && args[0].equals("scheduler")) {
             logger.info("스케줄러 모드로 실행");
@@ -54,7 +60,9 @@ public class Main {
         String day = date.substring(4, 6);
         String formattedDate = year + "-" + month + "-" + day;
 
-        String imagePath = imagePathPrefix + date + ".png";
+        String imagePng = imagePathPrefix + date + ".png";
+        String imageJpg = imagePathPrefix + date + ".jpg";
+        String imagePath = new File(imagePng).exists() ? imagePng : imageJpg;
         logger.info("파싱 시작 - 날짜: {}, 이미지: {}", formattedDate, imagePath);
 
         List<CommentRecord> records = parser.parse(imagePath, formattedDate);
