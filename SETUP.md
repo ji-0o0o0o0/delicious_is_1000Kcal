@@ -43,8 +43,9 @@
 
 ### 2-5. 구글 시트 생성 및 공유
 1. 구글 시트 새로 생성
-2. 시트 하단 탭을 아래 3개로 생성
+2. 시트 하단 탭을 아래 4개로 생성
     - `원본기록`
+    - `이번주현황`
     - `주간통계`
     - `월간통계`
 3. 우상단 **공유** 클릭
@@ -55,7 +56,7 @@
 ## 3. config.properties 설정
 
 > **외부 파일로 분리한 이유**
-> config.properties를 jar 내부에만 두면 스케줄러 시간 등 설정을 바꿀 때마다 jar를 다시 빌드해야 했습니다.
+> config.properties를 jar 내부에만 두면 스케줄러 간격 등 설정을 바꿀 때마다 jar를 다시 빌드해야 했습니다.
 > jar와 같은 위치에 외부 config.properties를 두면 재빌드 없이 설정을 변경할 수 있습니다.
 > jar 빌드 시 `build/libs/` 에 자동 복사됩니다.
 
@@ -65,15 +66,13 @@
 spreadsheet.id=구글시트URL에서복사한ID
 credentials.file=다운로드받은서비스계정키파일명.json
 image.path.prefix=C:/Users/사용자명/Google Drive/delicious_1000/images/
-scheduler.hour=9
-scheduler.minute=0
+scheduler.interval.hours=1
 ```
 
 - `spreadsheet.id`: 구글 시트 URL에서 `/d/` 뒤 `/edit` 앞의 긴 문자열
 - `credentials.file`: JSON 파일명 (경로 없이 파일명만)
 - `image.path.prefix`: 캡처 이미지 저장 폴더 경로 (경로 구분자는 `/` 사용)
-- `scheduler.hour`: 스케줄러 실행 시간 (24시간 기준)
-- `scheduler.minute`: 스케줄러 실행 분
+- `scheduler.interval.hours`: 스케줄러 실행 간격 (시간 단위, 매 정시 기준으로 실행)
 
 > **주의**: Windows 경로는 `\` 대신 `/` 를 사용해야 합니다. `\t` 등이 이스케이프 문자로 처리될 수 있습니다.
 
@@ -101,13 +100,14 @@ scheduler.minute=0
 ## 5. 이미지 동기화 설정 (구글 드라이브)
 
 > **이미지 동기화 방식 결정 과정**
-> 핸드폰으로 캡처하면 더 선명하고 편리하지만 PC로 옮기는 과정이 필요했습니다.
+> 핸드폰으로 캡처하면 더 선명하고 편리하지만 PC로 옮기는 과정이 번거로웠습니다.
 > 구글 드라이브를 활용하면 핸드폰에서 업로드 후 PC에 자동 동기화되어 별도 전송 과정이 필요 없습니다.
 
 1. [drive.google.com/drive/downloads](https://drive.google.com/drive/downloads) 에서 구글 드라이브 PC 앱 설치
 2. 구글 드라이브에 `delicious_1000/images/` 폴더 생성
 3. `config.properties` 의 `image.path.prefix` 를 구글 드라이브 동기화 폴더 경로로 설정
 4. 핸드폰에서 캡처 후 구글 드라이브 앱으로 `260417.jpg` 형식으로 저장
+5. 처리 완료된 이미지는 자동으로 `images/done/` 폴더로 이동됩니다
 
 ---
 
@@ -115,7 +115,7 @@ scheduler.minute=0
 
 > **스케줄러 방식 결정 과정**
 > Java 내부 스케줄러만 사용하면 PC 재시작 시 매번 수동으로 jar를 실행해야 했습니다.
-> Windows 작업 스케줄러로 PC 시작 시 자동 실행하고, Java 내부 스케줄러가 매일 지정 시간에 동작하는 방식을 선택했습니다.
+> Windows 작업 스케줄러로 PC 시작 시 자동 실행하고, Java 내부 스케줄러가 매 정시마다 동작하는 방식을 선택했습니다.
 
 1. `Win + R` → `taskschd.msc` 입력 → 확인
 2. 오른쪽 **기본 작업 만들기** 클릭
@@ -128,4 +128,4 @@ scheduler.minute=0
 6. 마침 클릭
 
 > **주의**: 노트북 덮개를 닫고 사용하는 경우 **제어판 → 전원 옵션 → 덮개를 닫을 때 → 아무것도 안 함** 으로 설정하세요.
-> PC가 켜져 있으면 Java 내부 스케줄러가 `config.properties` 에 설정된 시간에 자동으로 실행합니다.
+> PC가 켜져 있으면 Java 내부 스케줄러가 `config.properties` 에 설정된 간격으로 자동으로 실행합니다.
