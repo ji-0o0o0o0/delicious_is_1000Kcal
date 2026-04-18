@@ -9,7 +9,6 @@ import java.io.File;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -23,12 +22,15 @@ public class Scheduler {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public void start() {
-        int targetHour = ConfigLoader.getInt("scheduler.hour");
-        int targetMinute = ConfigLoader.getInt("scheduler.minute");
-        logger.info("스케줄러 시작 - 매일 {}:{}에 실행", targetHour, targetMinute);
+        int intervalHours = ConfigLoader.getInt("scheduler.interval.hours");
+        logger.info("스케줄러 시작 - {}시간마다 정시에 실행", intervalHours);
 
-        long initialDelay = calculateInitialDelay(targetHour,targetMinute);
-        logger.info("첫 실행까지 {}분 대기", initialDelay / 60);
+        // 다음 정시까지 대기 시간 계산
+        LocalTime now = LocalTime.now();
+        long minutesUntilNextHour = 60 - now.getMinute();
+        long secondsUntilNextHour = minutesUntilNextHour * 60 - now.getSecond();
+
+        logger.info("다음 정시까지 {}분 대기", minutesUntilNextHour);
 
         scheduler.scheduleAtFixedRate(() -> {
             try {
@@ -36,7 +38,7 @@ public class Scheduler {
             } catch (Exception e) {
                 logger.error("스케줄러 실행 실패: {}", e.getMessage(), e);
             }
-        }, initialDelay, 86400, TimeUnit.SECONDS);
+        }, secondsUntilNextHour, intervalHours * 3600L, TimeUnit.SECONDS);
     }
     //test 용
     public void runNow() {
@@ -69,13 +71,16 @@ public class Scheduler {
                 logger.info("이미지 파일 발견 - {}", imagePath);
                 var records = parser.parse(imagePath, formattedDate);
                 if (!records.isEmpty()) {
-                    uploader.upload(records);
+                    uploader.upload(records,imagePath);
                     logger.info("업로드 완료 - {}", formattedDate);
                 }
             } else {
                 logger.info("이미지 파일 없음 - 건너뜀: {}", imagePath);
             }
         }
+
+        // 원본기록 업로드 후 이번주 현황 업데이트
+        new WeeklyCurrentUploader().uploadCurrentWeek();
 
         // 2. 월요일이면 지난주 통계 업로드
         if (today.getDayOfWeek().getValue() == 1) {
@@ -88,14 +93,6 @@ public class Scheduler {
             logger.info("1일 - 월간 통계 업로드 시작");
             new MonthlyStatsUploader().uploadMonthlyStats();
         }
-    }
-
-    private long calculateInitialDelay(int targetHour, int targetMinute) {
-        LocalTime now = LocalTime.now();
-        LocalTime target = LocalTime.of(targetHour, targetMinute);
-        long secondsUntilTarget = now.until(target, ChronoUnit.SECONDS);
-        if (secondsUntilTarget < 0) secondsUntilTarget += 86400;
-        return secondsUntilTarget;
     }
 
     public void stop() {

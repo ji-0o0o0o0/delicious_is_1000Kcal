@@ -1,18 +1,11 @@
 package com.kakaotracker;
 
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.model.ValueRange;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -39,7 +32,7 @@ public class SheetsUploader {
         return -1;
     }
 
-    public void upload(List<CommentRecord> records) {
+    public void upload(List<CommentRecord> records,String imagePath) {
         try {
             Sheets service = SheetsService.getService();
             String spreadsheetId = ConfigLoader.get("spreadsheet.id");
@@ -92,8 +85,30 @@ public class SheetsUploader {
             SheetsService.sortByDate(service, spreadsheetId);
             logger.info("날짜 기준 정렬 완료");
 
+            moveImageToDone(imagePath);
+
         } catch (Exception e) {
             logger.error("업로드 실패: {}", e.getMessage(), e);
+        }
+    }
+
+    // 처리 완료된 이미지 done 폴더로 이동
+    private void moveImageToDone(String imagePath) {
+        try {
+            File imageFile = new File(imagePath);
+            if (!imageFile.exists()) return;
+
+            File doneDir = new File(imageFile.getParent() + "/done");
+            if (!doneDir.exists()) doneDir.mkdirs();
+
+            File destFile = new File(doneDir, imageFile.getName());
+            if (imageFile.renameTo(destFile)) {
+                logger.info("이미지 이동 완료 - {}", destFile.getPath());
+            } else {
+                logger.warn("이미지 이동 실패 - {}", imagePath);
+            }
+        } catch (Exception e) {
+            logger.error("이미지 이동 실패: {}", e.getMessage(), e);
         }
     }
 

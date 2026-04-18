@@ -117,7 +117,28 @@ public class SheetsService {
                                 Collections.singletonList(new Request().setSortRange(sortRequest))))
                 .execute();
     }
+    public static LocalDate getLastRecordedDate(Sheets service, String spreadsheetId, LocalDate from) throws Exception {
+        ValueRange response = service.spreadsheets().values()
+                .get(spreadsheetId, "원본기록!A:A")
+                .execute();
 
+        List<List<Object>> values = response.getValues();
+        if (values == null) return from;
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        LocalDate lastDate = from;
+
+        for (List<Object> row : values) {
+            if (row.isEmpty()) continue;
+            try {
+                LocalDate date = LocalDate.parse(row.get(0).toString(), fmt);
+                if (!date.isBefore(from) && date.isAfter(lastDate)) {
+                    lastDate = date;
+                }
+            } catch (Exception ignored) {}
+        }
+        return lastDate;
+    }
     // ==================== 통계 시트 공통 ====================
     public static void ensureSheetTitle(Sheets service, String spreadsheetId, String sheetName, String title) throws Exception {
         ValueRange response = service.spreadsheets().values()

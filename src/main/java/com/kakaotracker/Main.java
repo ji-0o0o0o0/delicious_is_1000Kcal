@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Scanner;
 
@@ -52,8 +54,14 @@ public class Main {
 
         String imagePathPrefix = ConfigLoader.get("image.path.prefix");
 
-        System.out.print("날짜 입력 (예: 260414): ");
+        System.out.print("날짜 입력 (예: 260418 또는 0418): ");
         String date = scanner.nextLine().trim();
+
+        // 4자리면 현재 연도 앞에 추가
+        if (date.length() == 4) {
+            String yearPrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yy"));
+            date = yearPrefix + date;
+        }
 
         String year = "20" + date.substring(0, 2);
         String month = date.substring(2, 4);
@@ -75,7 +83,7 @@ public class Main {
         }
 
         logger.info("파싱 완료 - 총 {}명 기록", records.size());
-        uploader.upload(records);
+        uploader.upload(records,imagePath);
 
         System.out.println("완료! 구글 시트 확인해봐 😊");
         scanner.close();
