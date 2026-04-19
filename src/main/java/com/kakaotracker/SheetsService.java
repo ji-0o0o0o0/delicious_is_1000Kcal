@@ -89,8 +89,8 @@ public class SheetsService {
         if (hasHeader) return;
 
         List<List<Object>> header = new ArrayList<>();
-        header.add(Arrays.asList("📋 원본 기록", "", "", "", ""));
-        header.add(Arrays.asList("날짜", "이름", "운동", "식단", "완료여부"));
+        header.add(Arrays.asList("📋 원본 기록", "", "", "", "", ""));
+        header.add(Arrays.asList("날짜", "이름", "운동", "식단", "완료여부", "수정여부"));
 
         ValueRange body = new ValueRange().setValues(header);
         service.spreadsheets().values()
@@ -105,7 +105,7 @@ public class SheetsService {
                         .setStartRowIndex(2)
                         .setEndRowIndex(null) // 끝까지
                         .setStartColumnIndex(0)
-                        .setEndColumnIndex(5))
+                        .setEndColumnIndex(6))
                 .setSortSpecs(Collections.singletonList(
                         new SortSpec()
                                 .setDimensionIndex(0) // A열 기준
@@ -138,6 +138,38 @@ public class SheetsService {
             } catch (Exception ignored) {}
         }
         return lastDate;
+    }
+
+    public static List<ModifiedRow> getModifiedRows(Sheets service, String spreadsheetId) throws Exception {
+        ValueRange response = service.spreadsheets().values()
+                .get(spreadsheetId, "원본기록!A:F")
+                .execute();
+
+        List<List<Object>> values = response.getValues();
+        if (values == null) return new ArrayList<>();
+
+        List<ModifiedRow> modifiedRows = new ArrayList<>();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        for (int i = 0; i < values.size(); i++) {
+            List<Object> row = values.get(i);
+            if (row.size() >= 6 && "Y".equals(row.get(5).toString())) {
+                try {
+                    LocalDate date = LocalDate.parse(row.get(0).toString(), fmt);
+                    modifiedRows.add(new ModifiedRow(i + 1, date));
+                } catch (Exception ignored) {}
+            }
+        }
+        return modifiedRows;
+    }
+
+    public static void updateModificationStatus(Sheets service, String spreadsheetId, int rowNum, String status) throws Exception {
+        ValueRange body = new ValueRange()
+                .setValues(Collections.singletonList(Collections.singletonList(status)));
+        service.spreadsheets().values()
+                .update(spreadsheetId, "원본기록!F" + rowNum, body)
+                .setValueInputOption("RAW")
+                .execute();
     }
     // ==================== 통계 시트 공통 ====================
     public static void ensureSheetTitle(Sheets service, String spreadsheetId, String sheetName, String title) throws Exception {

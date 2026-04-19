@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class SheetsUploader {
@@ -52,35 +53,38 @@ public class SheetsUploader {
                 }
             }
 
-            records.sort((a, b) -> allMembers.indexOf(a.getName()) - allMembers.indexOf(b.getName()));
+            records.sort(Comparator.comparingInt(a -> allMembers.indexOf(a.getName())));
 
             for (CommentRecord record : records) {
+                int rowIndex = findRowIndex(service, spreadsheetId, record.getDate(), record.getName());
+
+                if (rowIndex == -1) {
+                    // 맨 밑 다음 행 번호 찾기
+                    ValueRange response = service.spreadsheets().values()
+                            .get(spreadsheetId, "원본기록!A:A")
+                            .execute();
+                    rowIndex = response.getValues() == null ? 3 : response.getValues().size() + 1;
+                }
+
+                String formula = "=IF(AND(C" + rowIndex + "=\"✅\",D" + rowIndex + "=\"✅\"),\"완료\",IF(C" + rowIndex + "=\"✅\",\"운동만\",IF(D" + rowIndex + "=\"✅\",\"식단만\",\"미완료\")))";
+
                 List<Object> row = Arrays.asList(
                         record.getDate(),
                         record.getName(),
                         record.isExercise() ? "✅" : "❌",
                         record.isDiet() ? "✅" : "❌",
-                        record.getStatus()
+                        formula,
+                        ""
                 );
 
-                int rowIndex = findRowIndex(service, spreadsheetId, record.getDate(), record.getName());
+                String range = "원본기록!A" + rowIndex + ":F" + rowIndex;
+                ValueRange body = new ValueRange().setValues(Collections.singletonList(row));
+                service.spreadsheets().values()
+                        .update(spreadsheetId, range, body)
+                        .setValueInputOption("USER_ENTERED")
+                        .execute();
 
-                if (rowIndex == -1) {
-                    ValueRange body = new ValueRange().setValues(Collections.singletonList(row));
-                    service.spreadsheets().values()
-                            .append(spreadsheetId, "원본기록!A3:E", body)
-                            .setValueInputOption("RAW")
-                            .execute();
-                    logger.info("신규 추가 - {}, {}, {}", record.getDate(), record.getName(), record.getStatus());
-                } else {
-                    String range = "원본기록!A" + rowIndex + ":E" + rowIndex;
-                    ValueRange body = new ValueRange().setValues(Collections.singletonList(row));
-                    service.spreadsheets().values()
-                            .update(spreadsheetId, range, body)
-                            .setValueInputOption("RAW")
-                            .execute();
-                    logger.info("업데이트 - {}, {}, {}", record.getDate(), record.getName(), record.getStatus());
-                }
+                logger.info("업로드 - {}, {}, {}", record.getDate(), record.getName(), record.getStatus());
             }
             SheetsService.sortByDate(service, spreadsheetId);
             logger.info("날짜 기준 정렬 완료");

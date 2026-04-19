@@ -6,10 +6,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -50,8 +52,23 @@ public class Scheduler {
         ImageParser parser = new ImageParser();
         SheetsUploader uploader = new SheetsUploader();
 
+        logger.info("===== {} {} 스케줄러 실행 =====", today, LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")));
+
         // 최근 7일치 이미지 체크
         String imagePathPrefix = ConfigLoader.get("image.path.prefix");
+
+        // 처리할 파일 있는지 먼저 체크
+        File imageDir = new File(imagePathPrefix);
+        File[] files = imageDir.listFiles((dir, name) ->
+                name.endsWith(".png") || name.endsWith(".jpg"));
+
+        // 수정여부 Y 체크 (이미지 유무 상관없이)
+        processModifications();
+
+        if (files == null || files.length == 0) {
+            logger.info("처리할 이미지 파일 없음");
+            return;
+        }
 
         for (int i = 0; i < 7; i++) {
             LocalDate targetDate = today.minusDays(i);
@@ -103,18 +120,77 @@ public class Scheduler {
         try {
             Sheets service = SheetsService.getService();
             String spreadsheetId = ConfigLoader.get("spreadsheet.id");
+            List<String> members = SheetsService.loadMembers();
+
             ValueRange response = service.spreadsheets().values()
-                    .get(spreadsheetId, "원본기록!A:A")
+                    .get(spreadsheetId, "원본기록!A:B")
                     .execute();
 
             List<List<Object>> values = response.getValues();
             if (values == null) return false;
 
-            return values.stream()
-                    .anyMatch(row -> !row.isEmpty() && row.get(0).toString().equals(date));
+            // 해당 날짜에 있는 멤버 이름 수집
+            Set<String> uploadedMembers = values.stream()
+                    .filter(row -> row.size() >= 2 && row.get(0).toString().equals(date))
+                    .map(row -> row.get(1).toString())
+                    .collect(java.util.stream.Collectors.toSet());
+
+            // 모든 멤버가 다 있으면 완료
+            return uploadedMembers.containsAll(members);
+
         } catch (Exception e) {
             logger.error("업로드 여부 확인 실패: {}", e.getMessage(), e);
             return false;
+        }
+    }
+
+    private void processModifications() {
+        try {
+            Sheets service = SheetsService.getService();
+            String spreadsheetId = ConfigLoader.get("spreadsheet.id");
+            List<ModifiedRow> modifiedRows = SheetsService.getModifiedRows(service, spreadsheetId);
+
+            if (modifiedRows.isEmpty()) {
+                logger.info("수정된 행 없음 - 건너뜀");
+                return;
+            }
+
+            LocalDate monday = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate lastMonday = monday.minusWeeks(1);
+
+            boolean needCurrentWeek = false;
+            boolean needLastWeek = false;
+
+            for (ModifiedRow row : modifiedRows) {
+                LocalDate date = row.getDate();
+
+                if (!date.isBefore(monday)) {
+                    // 이번주
+                    needCurrentWeek = true;
+                    SheetsService.updateModificationStatus(service, spreadsheetId, row.getRowNum(), "D");
+                } else if (!date.isBefore(lastMonday)) {
+                    // 지난주
+                    needLastWeek = true;
+                    SheetsService.updateModificationStatus(service, spreadsheetId, row.getRowNum(), "D");
+                } else {
+                    // 그 이전 - 무시
+                    SheetsService.updateModificationStatus(service, spreadsheetId, row.getRowNum(), "P");
+                    logger.info("지난주 이전 수정 - 무시: {}", date);
+                }
+            }
+
+            if (needCurrentWeek) {
+                logger.info("이번주 수정 감지 - 이번주 현황 업데이트");
+                new WeeklyCurrentUploader().uploadCurrentWeek();
+            }
+
+            if (needLastWeek) {
+                logger.info("지난주 수정 감지 - 주간 통계 업데이트");
+                new WeeklyStatsUploader().uploadWeeklyStats();
+            }
+
+        } catch (Exception e) {
+            logger.error("수정여부 처리 실패: {}", e.getMessage(), e);
         }
     }
 }
