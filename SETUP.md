@@ -67,12 +67,16 @@ spreadsheet.id=구글시트URL에서복사한ID
 credentials.file=다운로드받은서비스계정키파일명.json
 image.path.prefix=C:/Users/사용자명/Google Drive/delicious_1000/images/
 scheduler.interval.hours=1
+monthly.start.date=2026-04-18
+monthly.end.date=2026-05-17
 ```
 
 - `spreadsheet.id`: 구글 시트 URL에서 `/d/` 뒤 `/edit` 앞의 긴 문자열
 - `credentials.file`: JSON 파일명 (경로 없이 파일명만)
 - `image.path.prefix`: 캡처 이미지 저장 폴더 경로 (경로 구분자는 `/` 사용)
 - `scheduler.interval.hours`: 스케줄러 실행 간격 (시간 단위, 매 정시 기준으로 실행)
+- `monthly.start.date`: 월간통계 시작 날짜 (yyyy-MM-dd 형식)
+- `monthly.end.date`: 월간통계 종료 날짜 (yyyy-MM-dd 형식, 다음날 자동 실행)
 
 > **주의**: Windows 경로는 `\` 대신 `/` 를 사용해야 합니다. `\t` 등이 이스케이프 문자로 처리될 수 있습니다.
 
@@ -87,9 +91,9 @@ scheduler.interval.hours=1
 `src/main/resources/members.txt` 파일 생성 후 멤버 이름을 한 줄에 한 명씩 입력:
 
 ```
-마이클
-제이슨
-홍길동
+강동하
+고마움
+김소연
 ...
 ```
 
