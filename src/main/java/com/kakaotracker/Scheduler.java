@@ -105,9 +105,10 @@ public class Scheduler {
             new WeeklyStatsUploader().uploadWeeklyStats();
         }
 
-        // 3. 1일이면 지난달 통계 업로드
-        if (today.getDayOfMonth() == 1) {
-            logger.info("1일 - 월간 통계 업로드 시작");
+        // 3. 프로젝트 기간 1일지나면 지난달 통계 업로드
+        LocalDate monthlyEndDate = LocalDate.parse(ConfigLoader.get("monthly.end.date"));
+        if (today.equals(monthlyEndDate.plusDays(1))) {
+            logger.info("{}일 - 월간 통계 업로드 시작",monthlyEndDate);
             new MonthlyStatsUploader().uploadMonthlyStats();
         }
     }

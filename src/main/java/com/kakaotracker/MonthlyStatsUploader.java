@@ -20,14 +20,16 @@ public class MonthlyStatsUploader {
             String spreadsheetId = ConfigLoader.get("spreadsheet.id");
             List<String> members = SheetsService.loadMembers();
 
-            YearMonth lastMonth = YearMonth.now().minusMonths(1);
-            LocalDate firstDay = lastMonth.atDay(1);
-            LocalDate lastDay = lastMonth.atEndOfMonth();
-            int totalDays = lastMonth.lengthOfMonth();
+            LocalDate firstDay = LocalDate.parse(ConfigLoader.get("monthly.start.date"));
+            LocalDate lastDay = LocalDate.parse(ConfigLoader.get("monthly.end.date"));
+            int totalDays = (int) (lastDay.toEpochDay() - firstDay.toEpochDay()) + 1;
 
             Map<String, int[]> stats = SheetsService.calculateStats(service, spreadsheetId, members, firstDay, lastDay);
 
-            String title = String.format("## %d년 %d월", lastMonth.getYear() % 100, lastMonth.getMonthValue());
+            String title = String.format("## %d.%02d.%02d ~ %d.%02d.%02d (%d일)",
+                    firstDay.getYear() % 100, firstDay.getMonthValue(), firstDay.getDayOfMonth(),
+                    lastDay.getYear() % 100, lastDay.getMonthValue(), lastDay.getDayOfMonth(),
+                    totalDays);
 
             List<List<Object>> insertRows = SheetsService.buildStatsRows(members, stats, totalDays, title, "🏆 이달의 MVP: ");
 
