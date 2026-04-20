@@ -77,6 +77,16 @@ public class ImageParser {
             }
 
             if (currentName != null) {
+                // 치팅 먼저 체크
+                boolean hasCheat = line.contains("치팅") || line.contains("ㅊㅌ") ||line.contains("ㅅㄷ") || line.contains("😋");
+
+                if (hasCheat) {
+                    logger.info("파싱 완료 - 날짜: {}, 이름: {}, 치팅", date, currentName);
+                    records.add(new CommentRecord(date, currentName, false, false, true));
+                    currentName = null;
+                    continue;
+                }
+
                 boolean exerciseFail = line.contains("운실") || line.contains("운동실패") || line.contains("운동 실패");
                 boolean dietFail = line.contains("식실") || line.contains("식단실패") || line.contains("식단 실패");
 
@@ -85,7 +95,7 @@ public class ImageParser {
 
                 if (hasExercise || hasDiet) {
                     logger.info("파싱 완료 - 날짜: {}, 이름: {}, 운동: {}, 식단: {}", date, currentName, hasExercise, hasDiet);
-                    records.add(new CommentRecord(date, currentName, hasExercise, hasDiet));
+                    records.add(new CommentRecord(date, currentName, hasExercise, hasDiet, false));
                     currentName = null;
                 }
             }

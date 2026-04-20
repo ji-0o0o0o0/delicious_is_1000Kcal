@@ -254,11 +254,11 @@ public class SheetsService {
                 .execute();
     }
 
-    public static List<List<Object>> createStatsHeader(String title) {
+    public static List<List<Object>> createStatsHeader(String title, String mvpText, String topRate, String mvpLabel) {
         List<List<Object>> rows = new ArrayList<>();
-        rows.add(Arrays.asList("", "", "", "", "", "", "", ""));
-        rows.add(Arrays.asList(title, "", "", "", "", "", "", ""));
-        rows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "달성률", "순위", "", ""));
+        rows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));
+        rows.add(Arrays.asList(title, "","", mvpLabel + mvpText + " (" + topRate + ")", "", "", "", "", ""));
+        rows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "치팅여부", "달성률", "순위", "", ""));
         return rows;
     }
 
@@ -275,7 +275,7 @@ public class SheetsService {
         if (allRows == null) allRows = new ArrayList<>();
 
         Map<String, int[]> stats = new LinkedHashMap<>();
-        for (String member : members) stats.put(member, new int[]{0, 0, 0});
+        for (String member : members) stats.put(member, new int[]{0, 0, 0, 0});
 
         for (List<Object> row : allRows) {
             if (row.size() < 5) continue;
@@ -283,13 +283,18 @@ public class SheetsService {
             String name = row.get(1).toString();
             boolean exercise = "✅".equals(row.get(2).toString());
             boolean diet = "✅".equals(row.get(3).toString());
+            boolean cheat = "😋".equals(row.get(2).toString());
 
             try {
                 LocalDate date = LocalDate.parse(dateStr, fmt);
                 if (!date.isBefore(startDate) && !date.isAfter(endDate) && stats.containsKey(name)) {
-                    if (exercise) stats.get(name)[0]++;
-                    if (diet) stats.get(name)[1]++;
-                    if (exercise && diet) stats.get(name)[2]++;
+                    if (cheat) {
+                        stats.get(name)[3]++;
+                    } else {
+                        if (exercise) stats.get(name)[0]++;
+                        if (diet) stats.get(name)[1]++;
+                        if (exercise && diet) stats.get(name)[2]++;
+                    }
                 }
             } catch (Exception ignored) {}
         }
@@ -299,12 +304,13 @@ public class SheetsService {
         List<String[]> resultRows = new ArrayList<>();
         for (String member : members) {
             int[] s = stats.get(member);
-            double rate = (s[2] / (double) totalDays) * 100;
+            int cheatCount = Math.min(s[3], 1);
+            double rate = (Math.min(s[2] + cheatCount, totalDays) / (double) totalDays) * 100;
             resultRows.add(new String[]{
                     member,
                     s[0] + "/" + totalDays + "일",
                     s[1] + "/" + totalDays + "일",
-                    s[2] + "/" + totalDays + "일",
+                    s[2] + "/" + totalDays + "일",  // 표시는 실제 달성일 그대로
                     String.format("%.0f%%", rate)
             });
         }
@@ -320,7 +326,7 @@ public class SheetsService {
         }
         String mvpText = String.join(", ", mvps);
 
-        List<List<Object>> insertRows = createStatsHeader(title);
+        List<List<Object>> insertRows = createStatsHeader(title,mvpText,topRate,mvpLabel);
 
         // 공동 순위 처리
         int rank = 1;
@@ -331,8 +337,8 @@ public class SheetsService {
                 if (currRate < prevRate) rank = i + 1;
             }
             String[] r = resultRows.get(i);
-            List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], r[4], rank + "위", "", ""));
-            if (i == 0) row.set(7, mvpLabel + mvpText + " (" + topRate + ")");
+            String cheatStatus = stats.get(r[0])[3] == 0 ? "미사용" : stats.get(r[0])[3] == 1 ? "사용" : "초과";
+            List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], cheatStatus, r[4], rank + "위", "", ""));
             insertRows.add(row);
         }
         return insertRows;

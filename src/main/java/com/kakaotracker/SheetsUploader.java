@@ -6,38 +6,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 public class SheetsUploader {
 
     private static final Logger logger = LoggerFactory.getLogger(SheetsUploader.class);
     private static final String APPLICATION_NAME = "kakao-tracker";
 
-    private int findRowIndex(Sheets service, String spreadsheetId, String date, String name) throws Exception {
-        ValueRange response = service.spreadsheets().values()
-                .get(spreadsheetId, "원본기록!A:B")
-                .execute();
-
-        List<List<Object>> values = response.getValues();
-        if (values == null) return -1;
-
-        for (int i = 2; i < values.size(); i++) {
-            List<Object> row = values.get(i);
-            if (row.size() >= 2 && row.get(0).equals(date) && row.get(1).equals(name)) {
-                return i + 1;
-            }
-        }
-        return -1;
-    }
-
     public void upload(List<CommentRecord> records,String imagePath) {
         try {
+
             Sheets service = SheetsService.getService();
             String spreadsheetId = ConfigLoader.get("spreadsheet.id");
-            SheetsService.ensureRawDataHeader(service, spreadsheetId);
+
+            // 원본기록 전체 한 번만 읽기
+            ValueRange allData = service.spreadsheets().values()
+                    .get(spreadsheetId, "원본기록!A3:B")
+                    .execute();
+            List<List<Object>> allRows = allData.getValues();
+            // 헤더 없으면 추가
+            if (allRows == null || allRows.size() < 2) {
+                SheetsService.ensureRawDataHeader(service, spreadsheetId);
+            }
 
             String date = records.isEmpty() ? "" : records.get(0).getDate();
             List<String> allMembers = SheetsService.loadMembers();
@@ -48,7 +38,7 @@ public class SheetsUploader {
 
             for (String member : allMembers) {
                 if (!parsedNames.contains(member)) {
-                    records.add(new CommentRecord(date, member, false, false));
+                    records.add(new CommentRecord(date, member, false, false, false));
                     logger.info("미완료 추가 - {}, {}", date, member);
                 }
             }
@@ -56,23 +46,35 @@ public class SheetsUploader {
             records.sort(Comparator.comparingInt(a -> allMembers.indexOf(a.getName())));
 
             for (CommentRecord record : records) {
-                int rowIndex = findRowIndex(service, spreadsheetId, record.getDate(), record.getName());
-
-                if (rowIndex == -1) {
-                    // 맨 밑 다음 행 번호 찾기
-                    ValueRange response = service.spreadsheets().values()
-                            .get(spreadsheetId, "원본기록!A:A")
-                            .execute();
-                    rowIndex = response.getValues() == null ? 3 : response.getValues().size() + 1;
+                // 행 번호 찾기 (메모리에서)
+                int rowIndex = -1;
+                if (allRows != null) {
+                    for (int i = 0; i < allRows.size(); i++) {
+                        List<Object> r = allRows.get(i);
+                        if (r.size() >= 2 && r.get(0).equals(record.getDate()) && r.get(1).equals(record.getName())) {
+                            rowIndex = i + 3;
+                            break;
+                        }
+                    }
                 }
 
-                String formula = "=IF(AND(C" + rowIndex + "=\"✅\",D" + rowIndex + "=\"✅\"),\"완료\",IF(C" + rowIndex + "=\"✅\",\"운동만\",IF(D" + rowIndex + "=\"✅\",\"식단만\",\"미완료\")))";
+                if (rowIndex == -1) {
+                    rowIndex = allRows == null ? 3 : allRows.size() + 3;
+                    // allRows에 빈 행 추가해서 다음 행 번호 계산에 반영
+                    if (allRows == null) allRows = new ArrayList<>();
+                    allRows.add(Arrays.asList(record.getDate(), record.getName()));
+                }
+
+                String exerciseVal = record.isCheat() ? "😋" : (record.isExercise() ? "✅" : "❌");
+                String dietVal = record.isCheat() ? "😋" : (record.isDiet() ? "✅" : "❌");
+
+                String formula = "=IF(OR(C" + rowIndex + "=\"😋\",D" + rowIndex + "=\"😋\"),\"치팅\",IF(AND(C" + rowIndex + "=\"✅\",D" + rowIndex + "=\"✅\"),\"완료\",IF(C" + rowIndex + "=\"✅\",\"운동만\",IF(D" + rowIndex + "=\"✅\",\"식단만\",\"미완료\"))))";
 
                 List<Object> row = Arrays.asList(
                         record.getDate(),
                         record.getName(),
-                        record.isExercise() ? "✅" : "❌",
-                        record.isDiet() ? "✅" : "❌",
+                        exerciseVal,
+                        dietVal,
                         formula,
                         ""
                 );
