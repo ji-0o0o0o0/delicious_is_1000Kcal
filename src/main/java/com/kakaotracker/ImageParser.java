@@ -87,8 +87,9 @@ public class ImageParser {
                     continue;
                 }
 
-                boolean exerciseFail = line.contains("운실") || line.contains("운동실패") || line.contains("운동 실패");
-                boolean dietFail = line.contains("식실") || line.contains("식단실패") || line.contains("식단 실패");
+                boolean bothFail = line.contains("운식실") || line.contains("식운실");
+                boolean exerciseFail = bothFail || line.contains("운실") || line.contains("운동실패") || line.contains("운동 실패");
+                boolean dietFail = bothFail || line.contains("식실") || line.contains("식단실패") || line.contains("식단 실패");
 
                 boolean hasExercise = !exerciseFail && (line.contains("운") || line.contains("운동"));
                 boolean hasDiet = !dietFail && (line.contains("식") || line.contains("식단"));
