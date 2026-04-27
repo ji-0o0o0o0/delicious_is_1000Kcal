@@ -54,6 +54,17 @@ public class MainUI extends JFrame {
         logArea.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
         JScrollPane scrollPane = new JScrollPane(logArea);
         add(scrollPane, BorderLayout.CENTER);
+
+        JButton logButton = new JButton("📋 로그 보기");
+        logButton.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
+        logButton.addActionListener(e -> {
+            try {
+                Desktop.getDesktop().open(new File("logs/kakao-tracker.log"));
+            } catch (Exception ex) {
+                log("로그 파일을 열 수 없습니다: " + ex.getMessage());
+            }
+        });
+        topPanel.add(logButton);
     }
 
     private void onRun() {
