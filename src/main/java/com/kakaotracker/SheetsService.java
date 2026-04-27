@@ -341,6 +341,7 @@ public class SheetsService {
             List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], cheatStatus, r[4], rank + "위", "", ""));
             insertRows.add(row);
         }
+        insertRows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));
         return insertRows;
     }
 }
