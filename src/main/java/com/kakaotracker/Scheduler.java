@@ -18,6 +18,22 @@ import java.util.concurrent.TimeUnit;
 
 public class Scheduler {
 
+    private LogCallback logCallback;
+
+    public void setLogCallback(LogCallback callback) {
+        this.logCallback = callback;
+    }
+
+    private void log(String msg) {
+        logger.info(msg);
+        if (logCallback != null) logCallback.onLog(msg);
+    }
+    private void log(String format, Object... args) {
+        String msg = String.format(format.replace("{}", "%s"), args);
+        logger.info(msg);
+        if (logCallback != null) logCallback.onLog(msg);
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final DateTimeFormatter FILE_FMT = DateTimeFormatter.ofPattern("yyMMdd");
@@ -52,7 +68,7 @@ public class Scheduler {
         ImageParser parser = new ImageParser();
         SheetsUploader uploader = new SheetsUploader();
 
-        logger.info("===== {} {} 스케줄러 실행 =====", today, LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")));
+        log("===== {} {} 스케줄러 실행 =====", today, LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")));
 
         // 최근 7일치 이미지 체크
         String imagePathPrefix = ConfigLoader.get("image.path.prefix");
@@ -66,7 +82,7 @@ public class Scheduler {
         processModifications();
 
         if (files == null || files.length == 0) {
-            logger.info("처리할 이미지 파일 없음");
+            log("처리할 이미지 파일 없음");
             return;
         }
 
@@ -152,7 +168,7 @@ public class Scheduler {
             List<ModifiedRow> modifiedRows = SheetsService.getModifiedRows(service, spreadsheetId);
 
             if (modifiedRows.isEmpty()) {
-                logger.info("수정된 행 없음 - 건너뜀");
+                log("수정된 행 없음 - 건너뜀");
                 return;
             }
 
@@ -176,17 +192,17 @@ public class Scheduler {
                 } else {
                     // 그 이전 - 무시
                     SheetsService.updateModificationStatus(service, spreadsheetId, row.getRowNum(), "P");
-                    logger.info("지난주 이전 수정 - 무시: {}", date);
+                    log("지난주 이전 수정 - 무시: {}", date);
                 }
             }
 
             if (needCurrentWeek) {
-                logger.info("이번주 수정 감지 - 이번주 현황 업데이트");
+                log("이번주 수정 감지 - 이번주 현황 업데이트");
                 new WeeklyCurrentUploader().uploadCurrentWeek();
             }
 
             if (needLastWeek) {
-                logger.info("지난주 수정 감지 - 주간 통계 업데이트");
+                log("지난주 수정 감지 - 주간 통계 업데이트");
                 new WeeklyStatsUploader().uploadWeeklyStats();
             }
 

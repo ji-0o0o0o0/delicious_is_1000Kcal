@@ -47,6 +47,18 @@ public class Main {
             return;
         }
 
+        if (args.length == 0) {
+            // 스케줄러 백그라운드 실행
+            Scheduler scheduler = new Scheduler();
+            scheduler.start();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(scheduler::stop));
+
+            // UI 실행
+            MainUI.showUI();
+            return;
+        }
+
         // 수동 모드
         Scanner scanner = new Scanner(System.in);
         ImageParser parser = new ImageParser();
