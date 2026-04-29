@@ -93,9 +93,9 @@ public class MainUI extends JFrame {
                     return;
                 }
 
-                // 클립보드에서 이미지 가져오기
-                Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-                Transferable content = clipboard.getContents(null);
+                try {
+                    Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                    Transferable content = clipboard.getContents(null);
 
                 if (content != null && content.isDataFlavorSupported(DataFlavor.imageFlavor)) {
                     BufferedImage image = (BufferedImage) content.getTransferData(DataFlavor.imageFlavor);
@@ -115,9 +115,11 @@ public class MainUI extends JFrame {
                     }
 
                     ImageIO.write(image, "png", imageFile);
-                    log("이미지 저장 완료: " + imagePath);
                 } else {
                     log("클립보드에 이미지 없음 - 일반 실행");
+                }
+                } catch (Exception ex) {
+                    log("클립보드 접근 실패 - 일반 실행");
                 }
 
                 // 스케줄러 실행
