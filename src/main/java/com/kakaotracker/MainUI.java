@@ -20,10 +20,10 @@ public class MainUI extends JFrame {
     private JTextArea logArea;
     private JButton runButton;
     private JTextField dateField;
+    private Scheduler globalScheduler;
 
-
-
-    public MainUI() {
+    public MainUI(Scheduler scheduler) {
+        this.globalScheduler = scheduler;
         setTitle("🥗 delicious_is_1000Kcal Tracker");
         setSize(600, 400);
         setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
@@ -46,16 +46,7 @@ public class MainUI extends JFrame {
         runButton.addActionListener(e -> onRun());
         topPanel.add(runButton);
 
-        add(topPanel, BorderLayout.NORTH);
-
-        // 로그 영역
-        logArea = new JTextArea();
-        logArea.setEditable(false);
-        logArea.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
-        JScrollPane scrollPane = new JScrollPane(logArea);
-        add(scrollPane, BorderLayout.CENTER);
-
-        JButton logButton = new JButton("📋 로그 보기");
+        JButton logButton = new JButton("로그 보기");
         logButton.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
         logButton.addActionListener(e -> {
             try {
@@ -65,6 +56,41 @@ public class MainUI extends JFrame {
             }
         });
         topPanel.add(logButton);
+
+        JButton restartButton = new JButton("재시작");
+        restartButton.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
+        restartButton.addActionListener(e -> {
+            log("스케줄러 재시작...");
+            if (globalScheduler != null) globalScheduler.stop();
+            globalScheduler = new Scheduler();
+            globalScheduler.start();
+            log("스케줄러 재시작 완료!");
+        });
+        topPanel.add(restartButton);
+
+        JButton exitButton = new JButton("종료");
+        exitButton.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
+        exitButton.addActionListener(e -> {
+            try {
+                if (globalScheduler != null) globalScheduler.stop();
+                String startupPath = System.getenv("APPDATA") + "\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\kakaotracker.bat";
+                ProcessBuilder pb = new ProcessBuilder("cmd", "/c", startupPath);
+                pb.start();
+            } catch (Exception ex) {
+                logger.error("재시작 실패: {}", ex.getMessage(), ex);
+            }
+            System.exit(0);
+        });
+        topPanel.add(exitButton);
+
+        add(topPanel, BorderLayout.NORTH);
+
+        // 로그 영역
+        logArea = new JTextArea();
+        logArea.setEditable(false);
+        logArea.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
+        JScrollPane scrollPane = new JScrollPane(logArea);
+        add(scrollPane, BorderLayout.CENTER);
     }
 
     private void onRun() {
@@ -73,16 +99,13 @@ public class MainUI extends JFrame {
 
         new Thread(() -> {
             try {
-                // 날짜 처리
                 String dateInput = dateField.getText().trim();
                 String dateStr;
 
                 if (dateInput.isEmpty()) {
-                    // 비어있으면 어제 날짜
                     dateStr = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyMMdd"));
                     log("날짜 미입력 - 어제 날짜 사용: " + dateStr);
                 } else if (dateInput.length() == 4) {
-                    // 4자리면 올해 연도 추가
                     String yearPrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yy"));
                     dateStr = yearPrefix + dateInput;
                     log("4자리 입력 - 연도 자동 추가: " + dateStr);
@@ -97,32 +120,31 @@ public class MainUI extends JFrame {
                     Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
                     Transferable content = clipboard.getContents(null);
 
-                if (content != null && content.isDataFlavorSupported(DataFlavor.imageFlavor)) {
-                    BufferedImage image = (BufferedImage) content.getTransferData(DataFlavor.imageFlavor);
-                    String imagePath = ConfigLoader.get("image.path.prefix") + dateStr + ".png";
-                    File imageFile = new File(imagePath);
+                    if (content != null && content.isDataFlavorSupported(DataFlavor.imageFlavor)) {
+                        BufferedImage image = (BufferedImage) content.getTransferData(DataFlavor.imageFlavor);
+                        String imagePath = ConfigLoader.get("image.path.prefix") + dateStr + ".png";
+                        File imageFile = new File(imagePath);
 
-                    // 이미 파일 있으면 덮어쓸지 확인
-                    if (imageFile.exists()) {
-                        int choice = JOptionPane.showConfirmDialog(this,
-                                dateStr + ".png 파일이 이미 있어요. 덮어쓸까요?",
-                                "파일 존재",
-                                JOptionPane.YES_NO_OPTION);
-                        if (choice != JOptionPane.YES_OPTION) {
-                            log("취소됨");
-                            return;
+                        if (imageFile.exists()) {
+                            int choice = JOptionPane.showConfirmDialog(this,
+                                    dateStr + ".png 파일이 이미 있어요. 덮어쓸까요?",
+                                    "파일 존재",
+                                    JOptionPane.YES_NO_OPTION);
+                            if (choice != JOptionPane.YES_OPTION) {
+                                log("취소됨");
+                                return;
+                            }
                         }
-                    }
 
-                    ImageIO.write(image, "png", imageFile);
-                } else {
-                    log("클립보드에 이미지 없음 - 일반 실행");
-                }
+                        ImageIO.write(image, "png", imageFile);
+                        log("이미지 저장 완료: " + imagePath);
+                    } else {
+                        log("클립보드에 이미지 없음 - 일반 실행");
+                    }
                 } catch (Exception ex) {
                     log("클립보드 접근 실패 - 일반 실행");
                 }
 
-                // 스케줄러 실행
                 Scheduler scheduler = new Scheduler();
                 scheduler.setLogCallback(this::log);
                 scheduler.runNow();
@@ -144,7 +166,7 @@ public class MainUI extends JFrame {
         });
     }
 
-    public static void showUI() {
-        SwingUtilities.invokeLater(() -> new MainUI().setVisible(true));
+    public static void showUI(Scheduler scheduler) {
+        SwingUtilities.invokeLater(() -> new MainUI(scheduler).setVisible(true));
     }
 }

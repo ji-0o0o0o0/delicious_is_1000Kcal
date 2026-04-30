@@ -48,14 +48,10 @@ public class Main {
         }
 
         if (args.length == 0) {
-            // 스케줄러 백그라운드 실행
             Scheduler scheduler = new Scheduler();
             scheduler.start();
-
             Runtime.getRuntime().addShutdownHook(new Thread(scheduler::stop));
-
-            // UI 실행
-            MainUI.showUI();
+            MainUI.showUI(scheduler);
             return;
         }
 
