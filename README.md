@@ -57,13 +57,13 @@
 | E | 완료여부 (수식 자동 계산) |
 | F | 수정여부 (Y: 수정됨 / D: 재실행 완료 / P: 무시) |
 
-<img width="884" height="698" alt="원본기록" src="https://github.com/user-attachments/assets/8c5b67ed-8073-4046-8bb2-58481331cb85" />
+<img width="1130" height="698" alt="원본기록" src="https://github.com/user-attachments/assets/8c5b67ed-8073-4046-8bb2-58481331cb85" />
 
 ---
 
 ### 이번주현황
 
-<img width="884" height="703" alt="이번주현황" src="https://github.com/user-attachments/assets/3ffcea3f-32c7-4bbf-9065-b29e6113dce5" />
+<img width="981" height="703" alt="이번주현황" src="https://github.com/user-attachments/assets/3ffcea3f-32c7-4bbf-9065-b29e6113dce5" />
 
 ---
 
@@ -75,7 +75,7 @@
 
 ### 월간통계
 
-<img width="884" height="703" alt="월간통계" src="https://github.com/user-attachments/assets/53b2dcda-3d65-4318-aee2-673d38458b82" />
+<img width="887" height="703" alt="월간통계" src="https://github.com/user-attachments/assets/53b2dcda-3d65-4318-aee2-673d38458b82" />
 
 ---
 
