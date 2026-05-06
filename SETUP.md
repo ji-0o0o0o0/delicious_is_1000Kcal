@@ -1,5 +1,27 @@
 # 🔧 상세 설정 가이드
 
+## 추가해야 하는 파일 목록
+
+아래 파일들은 보안상의 이유로 git에 포함되어 있지 않습니다. 직접 생성해야 합니다.
+
+| 파일 경로 | 설명 |
+|---|---|
+| `src/main/resources/config.properties` | 구글 시트 ID, 인증 파일명, 이미지 경로, 스케줄러 설정 |
+| `src/main/resources/서비스계정키.json` | Google Cloud 서비스 계정 JSON 키 |
+| `src/main/resources/members.txt` | 멤버 이름 목록 (한 줄에 한 명) |
+| `src/main/resources/tessdata/kor.traineddata` | Tesseract 한국어 언어팩 |
+
+---
+
+## 이미지 파일 형식
+
+- 저장 경로: `config.properties`의 `image.path.prefix`
+- 파일명 형식: `YYMMDD.png` 또는 `YYMMDD.jpg` (예: `260414.jpg`)
+- 처리 완료된 이미지는 자동으로 `done/` 폴더로 이동됩니다
+- 이미지에는 댓글 목록 전체가 보여야 합니다
+
+---
+
 ## 1. Tesseract 설치
 
 1. 아래 링크에서 설치 파일 다운로드
@@ -115,28 +137,7 @@ monthly.end.date=2026-05-17
 
 ---
 
-## 6. Windows 작업 스케줄러 등록
-
-> **스케줄러 방식 결정 과정**
-> Java 내부 스케줄러만 사용하면 PC 재시작 시 매번 수동으로 jar를 실행해야 했습니다.
-> Windows 작업 스케줄러로 PC 시작 시 자동 실행하고, Java 내부 스케줄러가 매 정시마다 동작하는 방식을 선택했습니다.
-
-1. `Win + R` → `taskschd.msc` 입력 → 확인
-2. 오른쪽 **기본 작업 만들기** 클릭
-3. 이름: `KakaoTracker` 입력
-4. 트리거: **시작할 때** 선택 (PC 켜질 때 자동 실행)
-5. 동작: **프로그램 시작** 선택
-    - 프로그램: `C:\경로\jdk\bin\javaw.exe`
-    - 인수: `-jar "C:\프로젝트경로\build\libs\delicious_is_1000Kcal-1.0-SNAPSHOT.jar" scheduler`
-    - 시작 위치: `C:\프로젝트경로\build\libs`
-6. 마침 클릭
-
-> **주의**: 노트북 덮개를 닫고 사용하는 경우 **제어판 → 전원 옵션 → 덮개를 닫을 때 → 아무것도 안 함** 으로 설정하세요.
-> PC가 켜져 있으면 Java 내부 스케줄러가 `config.properties` 에 설정된 간격으로 자동으로 실행합니다.
-
----
-
-## 7. 시작프로그램 등록 (권장)
+## 6. 시작프로그램 등록
 
 > **자동 실행 방식 결정 과정**
 > Windows 작업 스케줄러는 Microsoft 계정 사용 시 권한 문제로 설정이 어려웠습니다.
