@@ -82,7 +82,30 @@ public class MonthlyStatsUploader {
                     lastDay.getYear() % 100, lastDay.getMonthValue(), lastDay.getDayOfMonth(),
                     totalDays);
 
-            List<List<Object>> insertRows = SheetsService.createStatsHeader(title, mvpText, topRate, "🏆 MVP: ");
+            // 운동짱/식단짱 계산
+            String exerciseChamp = members.get(0);
+            String dietChamp = members.get(0);
+            int maxExercise = 0;
+            int maxDiet = 0;
+
+            for (String member : members) {
+                int[] s = totalStats.get(member);
+                if (s[0] > maxExercise) {
+                    maxExercise = s[0];
+                    exerciseChamp = member;
+                }
+                if (s[1] > maxDiet) {
+                    maxDiet = s[1];
+                    dietChamp = member;
+                }
+            }
+
+            List<List<Object>> insertRows = new ArrayList<>();
+            insertRows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));
+            insertRows.add(Arrays.asList(title, "", "", "", "", "", "", "", ""));
+            insertRows.add(Arrays.asList("🏆 MVP: " + mvpText + " (" + topRate + ")", "", "", "", "", "", "", "", ""));
+            insertRows.add(Arrays.asList("💪 운동짱: " + exerciseChamp + " (" + maxExercise + "일) | 🥗 식단짱: " + dietChamp + " (" + maxDiet + "일)", "", "", "", "", "", "", "", ""));
+            insertRows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "치팅여부", "달성률", "순위", "", ""));
 
             int rank = 1;
             for (int i = 0; i < resultRows.size(); i++) {
