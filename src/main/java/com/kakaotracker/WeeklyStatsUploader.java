@@ -23,7 +23,13 @@ public class WeeklyStatsUploader {
             String spreadsheetId = ConfigLoader.get("spreadsheet.id");
             List<String> members = SheetsService.loadMembers();
 
-            LocalDate lastMonday = LocalDate.now().with(TemporalAdjusters.previous(DayOfWeek.MONDAY));
+            LocalDate today = LocalDate.now();
+            LocalDate lastMonday;
+            if (today.getDayOfWeek() == DayOfWeek.MONDAY) {
+                lastMonday = today.minusWeeks(1);
+            } else {
+                lastMonday = today.with(TemporalAdjusters.previous(DayOfWeek.MONDAY)).minusWeeks(1);
+            }
             LocalDate lastSunday = lastMonday.plusDays(6);
 
             Map<String, int[]> stats = SheetsService.calculateStats(service, spreadsheetId, members, lastMonday, lastSunday);

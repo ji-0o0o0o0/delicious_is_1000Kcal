@@ -38,7 +38,7 @@ public class SheetsUploader {
 
             for (String member : allMembers) {
                 if (!parsedNames.contains(member)) {
-                    records.add(new CommentRecord(date, member, false, false, false));
+                    records.add(new CommentRecord(date, member, false, false, false,false));
                     logger.info("미완료 추가 - {}, {}", date, member);
                 }
             }
@@ -65,11 +65,10 @@ public class SheetsUploader {
                     allRows.add(Arrays.asList(record.getDate(), record.getName()));
                 }
 
-                String exerciseVal = record.isCheat() ? "😋" : (record.isExercise() ? "✅" : "❌");
+                String exerciseVal = record.isCheat() ? "😋" : record.isInjury() ? "🤕" : (record.isExercise() ? "✅" : "❌");
                 String dietVal = record.isCheat() ? "😋" : (record.isDiet() ? "✅" : "❌");
 
-                String formula = "=IF(OR(C" + rowIndex + "=\"😋\",D" + rowIndex + "=\"😋\"),\"치팅\",IF(AND(C" + rowIndex + "=\"✅\",D" + rowIndex + "=\"✅\"),\"완료\",IF(C" + rowIndex + "=\"✅\",\"운동만\",IF(D" + rowIndex + "=\"✅\",\"식단만\",\"미완료\"))))";
-
+                String formula = "=IF(OR(C" + rowIndex + "=\"😋\",D" + rowIndex + "=\"😋\"),\"치팅\",IF(C" + rowIndex + "=\"🤕\",\"부상\",IF(AND(C" + rowIndex + "=\"✅\",D" + rowIndex + "=\"✅\"),\"완료\",IF(C" + rowIndex + "=\"✅\",\"운동만\",IF(D" + rowIndex + "=\"✅\",\"식단만\",\"미완료\")))))";
                 List<Object> row = Arrays.asList(
                         record.getDate(),
                         record.getName(),

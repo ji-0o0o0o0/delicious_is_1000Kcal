@@ -77,12 +77,17 @@ public class ImageParser {
             }
 
             if (currentName != null) {
-                // 치팅 먼저 체크
                 boolean hasCheat = line.contains("치팅") || line.contains("ㅊㅌ") ||line.contains("ㅅㄷ") || line.contains("😋");
 
                 if (hasCheat) {
-                    logger.info("파싱 완료 - 날짜: {}, 이름: {}, 치팅", date, currentName);
-                    records.add(new CommentRecord(date, currentName, false, false, true));
+                    records.add(new CommentRecord(date, currentName, false, false, true,false));
+                    currentName = null;
+                    continue;
+                }
+                boolean hasInjury = line.contains("부상");
+
+                if (hasInjury) {
+                    records.add(new CommentRecord(date, currentName, false, false, false, true));
                     currentName = null;
                     continue;
                 }
@@ -109,8 +114,7 @@ public class ImageParser {
 
 
                 if (hasExercise || hasDiet) {
-                    logger.info("파싱 완료 - 날짜: {}, 이름: {}, 운동: {}, 식단: {}", date, currentName, hasExercise, hasDiet);
-                    records.add(new CommentRecord(date, currentName, hasExercise, hasDiet, false));
+                    records.add(new CommentRecord(date, currentName, hasExercise, hasDiet, false,false));
                     currentName = null;
                 }
             }

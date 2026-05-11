@@ -275,7 +275,7 @@ public class SheetsService {
         if (allRows == null) allRows = new ArrayList<>();
 
         Map<String, int[]> stats = new LinkedHashMap<>();
-        for (String member : members) stats.put(member, new int[]{0, 0, 0, 0});
+        for (String member : members) stats.put(member, new int[]{0, 0, 0, 0,0});
 
         for (List<Object> row : allRows) {
             if (row.size() < 5) continue;
@@ -284,13 +284,17 @@ public class SheetsService {
             boolean exercise = "✅".equals(row.get(2).toString());
             boolean diet = "✅".equals(row.get(3).toString());
             boolean cheat = "😋".equals(row.get(2).toString());
+            boolean injury = "🤕".equals(row.get(2).toString());
 
             try {
                 LocalDate date = LocalDate.parse(dateStr, fmt);
                 if (!date.isBefore(startDate) && !date.isAfter(endDate) && stats.containsKey(name)) {
                     if (cheat) {
                         stats.get(name)[3]++;
-                    } else {
+                    } else if (injury) {
+                        stats.get(name)[4] = 1;
+                        if (diet) stats.get(name)[1]++;
+                    }else {
                         if (exercise) stats.get(name)[0]++;
                         if (diet) stats.get(name)[1]++;
                         if (exercise && diet) stats.get(name)[2]++;
@@ -305,23 +309,35 @@ public class SheetsService {
         for (String member : members) {
             int[] s = stats.get(member);
             int cheatCount = Math.min(s[3], 1);
-            double rate = (Math.min(s[2] + cheatCount, totalDays) / (double) totalDays) * 100;
+            boolean hasInjury = s[4] == 1;
+            int effectiveDays = totalDays - cheatCount;
+            String cheatStatus = hasInjury ? "-" : s[3] == 0 ? "미사용" : s[3] == 1 ? "사용" : "초과";
+
+            double rate = hasInjury ? -1 :
+                    effectiveDays == 0 ? 0 : (Math.min(s[2] + cheatCount, totalDays) / (double) totalDays) * 100;
+
             resultRows.add(new String[]{
                     member,
-                    s[0] + "/" + totalDays + "일",
+                    hasInjury ? "🤕" : s[0] + "/" + totalDays + "일",
                     s[1] + "/" + totalDays + "일",
-                    s[2] + "/" + totalDays + "일",  // 표시는 실제 달성일 그대로
-                    String.format("%.0f%%", rate)
+                    hasInjury ? "-" : s[2] + "/" + totalDays + "일",
+                    cheatStatus,
+                    hasInjury ? "-" : String.format("%.0f%%", rate)
             });
+
         }
 
-        resultRows.sort((a, b) -> Integer.parseInt(b[4].replace("%", "")) - Integer.parseInt(a[4].replace("%", "")));
+        resultRows.sort((a, b) -> {
+            if (a[5].equals("-")) return 1;
+            if (b[5].equals("-")) return -1;
+            return Integer.parseInt(b[5].replace("%", "")) - Integer.parseInt(a[5].replace("%", ""));
+        });
 
         // 공동 1등 처리
-        String topRate = resultRows.get(0)[4];
+        String topRate = resultRows.get(0)[5];
         List<String> mvps = new ArrayList<>();
         for (String[] r : resultRows) {
-            if (r[4].equals(topRate)) mvps.add(r[0]);
+            if (r[5].equals(topRate)) mvps.add(r[0]);
             else break;
         }
         String mvpText = String.join(", ", mvps);
@@ -332,13 +348,17 @@ public class SheetsService {
         int rank = 1;
         for (int i = 0; i < resultRows.size(); i++) {
             if (i > 0) {
-                int prevRate = Integer.parseInt(resultRows.get(i-1)[4].replace("%", ""));
-                int currRate = Integer.parseInt(resultRows.get(i)[4].replace("%", ""));
-                if (currRate < prevRate) rank = i + 1;
+                String prevRate = resultRows.get(i-1)[5];
+                String currRate = resultRows.get(i)[5];
+                if (!currRate.equals("-") && !prevRate.equals("-") &&
+                        Integer.parseInt(currRate.replace("%", "")) < Integer.parseInt(prevRate.replace("%", ""))) {
+                    rank = i + 1;
+                }
             }
             String[] r = resultRows.get(i);
-            String cheatStatus = stats.get(r[0])[3] == 0 ? "미사용" : stats.get(r[0])[3] == 1 ? "사용" : "초과";
-            List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], cheatStatus, r[4], rank + "위", "", ""));
+            boolean memberHasInjury = r[5].equals("-");
+            String rankStr = memberHasInjury ? "-" : rank + "위";
+            List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], r[4], r[5], rankStr, "", ""));
             insertRows.add(row);
         }
         insertRows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));

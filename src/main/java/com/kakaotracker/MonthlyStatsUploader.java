@@ -27,22 +27,37 @@ public class MonthlyStatsUploader {
             // 전체 기간 통계
             Map<String, int[]> totalStats = SheetsService.calculateStats(service, spreadsheetId, members, firstDay, lastDay);
 
-            // 주차별 치팅 보너스 계산
+            // 주차별 치팅 보너스 + 부상 주 유효일수 계산
             Map<String, Integer> cheatBonus = new LinkedHashMap<>();
-            for (String member : members) cheatBonus.put(member, 0);
+            Map<String, Integer> injuryDays = new LinkedHashMap<>();
+            for (String member : members) {
+                cheatBonus.put(member, 0);
+                injuryDays.put(member, 0);
+            }
+
 
             LocalDate weekStart = firstDay.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
             while (!weekStart.isAfter(lastDay)) {
                 LocalDate weekEnd = weekStart.plusDays(6);
-                // 실제 기간과 겹치는 부분만
                 LocalDate effectiveStart = weekStart.isBefore(firstDay) ? firstDay : weekStart;
                 LocalDate effectiveEnd = weekEnd.isAfter(lastDay) ? lastDay : weekEnd;
+                int weekDays = (int)(effectiveEnd.toEpochDay() - effectiveStart.toEpochDay()) + 1;
 
                 Map<String, int[]> weekStats = SheetsService.calculateStats(service, spreadsheetId, members, effectiveStart, effectiveEnd);
 
+                Map<String, Integer> totalCheatCount = new LinkedHashMap<>();
+                for (String member : members) totalCheatCount.put(member, 0);
+
                 for (String member : members) {
-                    int weekCheat = Math.min(weekStats.get(member)[3], 1); // 주당 최대 1회
-                    cheatBonus.put(member, cheatBonus.get(member) + weekCheat);
+                    int weekCheat = Math.min(weekStats.get(member)[3], 1);
+                    boolean weekInjury = weekStats.get(member)[4] == 1;
+
+                    if (weekInjury) {
+                        injuryDays.put(member, injuryDays.get(member) + weekDays);
+                    } else {
+                        cheatBonus.put(member, cheatBonus.get(member) + weekCheat);
+                        totalCheatCount.put(member, totalCheatCount.get(member) + weekStats.get(member)[3]);
+                    }
                 }
                 weekStart = weekStart.plusWeeks(1);
             }
@@ -52,17 +67,21 @@ public class MonthlyStatsUploader {
             for (String member : members) {
                 int[] s = totalStats.get(member);
                 int bonus = cheatBonus.get(member);
-                double rate = (Math.min(s[2] + bonus, totalDays) / (double) totalDays) * 100;
-                int totalCheat = s[3];
-                String cheatStatus = totalCheat == 0 ? "미사용" : totalCheat == 1 ? "1회" : totalCheat + "회";
+                int effectiveTotalDays = totalDays - injuryDays.get(member);
+                double rate = effectiveTotalDays == 0 ? 0 : (Math.min(s[2] + bonus, effectiveTotalDays) / (double) effectiveTotalDays) * 100;
+
+                String cheatStatus = bonus == 0 ? "미사용" : bonus + "회";
+
+                String note = injuryDays.get(member) > 0 ? "부상 " + injuryDays.get(member) + "일 제외" : "";
 
                 resultRows.add(new String[]{
                         member,
                         s[0] + "/" + totalDays + "일",
                         s[1] + "/" + totalDays + "일",
-                        s[2] + "/" + totalDays + "일",
+                        s[2] + "/" + effectiveTotalDays + "일",
                         cheatStatus,
-                        String.format("%.0f%%", rate)
+                        String.format("%.0f%%", rate),
+                        note
                 });
             }
 
@@ -105,7 +124,7 @@ public class MonthlyStatsUploader {
             insertRows.add(Arrays.asList(title, "", "", "", "", "", "", "", ""));
             insertRows.add(Arrays.asList("🏆 MVP: " + mvpText + " (" + topRate + ")", "", "", "", "", "", "", "", ""));
             insertRows.add(Arrays.asList("💪 운동짱: " + exerciseChamp + " (" + maxExercise + "일) | 🥗 식단짱: " + dietChamp + " (" + maxDiet + "일)", "", "", "", "", "", "", "", ""));
-            insertRows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "치팅여부", "달성률", "순위", "", ""));
+            insertRows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "치팅횟수", "달성률", "순위", "비고", ""));
 
             int rank = 1;
             for (int i = 0; i < resultRows.size(); i++) {
@@ -115,7 +134,7 @@ public class MonthlyStatsUploader {
                     if (currRate < prevRate) rank = i + 1;
                 }
                 String[] r = resultRows.get(i);
-                List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], r[4], r[5], rank + "위", "", ""));
+                List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], r[4], r[5], rank + "위", r[6], ""));
                 insertRows.add(row);
             }
 
