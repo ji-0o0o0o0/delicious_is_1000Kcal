@@ -84,13 +84,7 @@ public class ImageParser {
                     currentName = null;
                     continue;
                 }
-                boolean hasInjury = line.contains("부상");
 
-                if (hasInjury) {
-                    records.add(new CommentRecord(date, currentName, false, false, false, true));
-                    currentName = null;
-                    continue;
-                }
 
                 boolean bothFail = line.contains("운식실") || line.contains("식운실")
                         || line.contains("운식 실") || line.contains("식운 실")
@@ -111,6 +105,14 @@ public class ImageParser {
                 }
                 boolean hasExercise = !exerciseFail && (line.contains("운") || line.contains("운동"));
                 boolean hasDiet = !dietFail && (line.contains("식") || line.contains("식단"));
+
+                boolean hasInjury = line.contains("부상");
+
+                if (hasInjury) {
+                    records.add(new CommentRecord(date, currentName, false, hasDiet, false, true));
+                    currentName = null;
+                    continue;
+                }
 
 
                 if (hasExercise || hasDiet) {
