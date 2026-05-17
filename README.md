@@ -122,8 +122,11 @@ UI 창 + 스케줄러 백그라운드 동시 실행
 |---|---|
 | 실행 | 클립보드 이미지 저장 + OCR 실행 |
 | 로그 보기 | 로그 파일 열기 |
+| 설정 열기 | config.properties 파일 열기 |
+| 이미지 폴더 | 이미지 저장 폴더 열기 |
 | 재시작 | config.properties 변경 후 스케줄러 재시작 |
 | 종료 | 스케줄러 종료 후 앱 재실행 (새 jar 적용 시 사용) |
+
 
 <img width="500" height="300" alt="" src="https://github.com/user-attachments/assets/f3a1428b-0410-42b1-a862-954de31cc617" />
 
