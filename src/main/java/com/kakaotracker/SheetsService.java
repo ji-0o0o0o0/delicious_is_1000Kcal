@@ -13,8 +13,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 public class SheetsService {
@@ -171,6 +173,84 @@ public class SheetsService {
                 .setValueInputOption("RAW")
                 .execute();
     }
+    // ==================== 제외기간 ====================
+    public static void ensureExclusionHeader(Sheets service, String spreadsheetId) throws Exception {
+        ValueRange response = service.spreadsheets().values()
+                .get(spreadsheetId, "제외기간!A1:E2")
+                .execute();
+
+        List<List<Object>> values = response.getValues();
+        if (values != null && values.size() >= 2) return;
+
+        List<List<Object>> header = new ArrayList<>();
+        header.add(Arrays.asList("📋 제외기간", "", "", "", ""));
+        header.add(Arrays.asList("이름", "시작날짜", "종료날짜", "사유", "표시"));
+
+        ValueRange body = new ValueRange().setValues(header);
+        service.spreadsheets().values()
+                .update(spreadsheetId, "제외기간!A1", body)
+                .setValueInputOption("RAW")
+                .execute();
+    }
+    public static void addExclusionIfAbsent(Sheets service, String spreadsheetId, String name, LocalDate date, String reason, String display) throws Exception {
+        // 해당 주 월~일 계산
+        LocalDate weekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekEnd = weekStart.plusDays(6);
+        String startStr = weekStart.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String endStr = weekEnd.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        // 이미 등록되어 있는지 체크
+        ValueRange response = service.spreadsheets().values()
+                .get(spreadsheetId, "제외기간!A:E")
+                .execute();
+        List<List<Object>> values = response.getValues();
+        if (values != null) {
+            for (List<Object> row : values) {
+                if (row.size() >= 3 && row.get(0).equals(name)
+                        && row.get(1).equals(startStr)) {
+                    return; // 이미 있으면 추가 안 함
+                }
+            }
+        }
+
+        // 추가
+        List<Object> newRow = Arrays.asList(name, startStr, endStr, reason, display);
+        int nextRow = values == null ? 3 : values.size() + 1;
+        ValueRange body = new ValueRange().setValues(Collections.singletonList(newRow));
+        service.spreadsheets().values()
+                .update(spreadsheetId, "제외기간!A" + nextRow, body)
+                .setValueInputOption("RAW")
+                .execute();
+
+        logger.info("제외기간 등록 - {}, {}~{}, {}", name, startStr, endStr, reason);
+    }
+    public static Map<String, List<String>> getExclusionReasons(Sheets service, String spreadsheetId, LocalDate startDate, LocalDate endDate) throws Exception {
+        ValueRange response = service.spreadsheets().values()
+                .get(spreadsheetId, "제외기간!A:E")
+                .execute();
+
+        List<List<Object>> values = response.getValues();
+        Map<String, List<String>> result = new LinkedHashMap<>(); // 이름 -> 사유 목록
+
+        if (values == null) return result;
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        for (List<Object> row : values) {
+            if (row.size() < 5) continue;
+            String name = row.get(0).toString();
+            try {
+                LocalDate excStart = LocalDate.parse(row.get(1).toString(), fmt);
+                LocalDate excEnd = LocalDate.parse(row.get(2).toString(), fmt);
+                String display = row.get(4).toString();
+
+                // 해당 기간이 startDate~endDate 와 겹치는지 체크
+                if (!excEnd.isBefore(startDate) && !excStart.isAfter(endDate)) {
+                    result.computeIfAbsent(name, k -> new ArrayList<>()).add(display);
+                }
+            } catch (Exception ignored) {}
+        }
+        return result;
+    }
     // ==================== 통계 시트 공통 ====================
     public static void ensureSheetTitle(Sheets service, String spreadsheetId, String sheetName, String title) throws Exception {
         ValueRange response = service.spreadsheets().values()
@@ -258,7 +338,7 @@ public class SheetsService {
         List<List<Object>> rows = new ArrayList<>();
         rows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));
         rows.add(Arrays.asList(title, "","", mvpLabel + mvpText + " (" + topRate + ")", "", "", "", "", ""));
-        rows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "치팅여부", "달성률", "순위", "", ""));
+        rows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "치팅여부", "달성률", "순위", "비고", ""));
         return rows;
     }
 
@@ -275,7 +355,7 @@ public class SheetsService {
         if (allRows == null) allRows = new ArrayList<>();
 
         Map<String, int[]> stats = new LinkedHashMap<>();
-        for (String member : members) stats.put(member, new int[]{0, 0, 0, 0,0});
+        for (String member : members) stats.put(member, new int[]{0, 0, 0, 0});
 
         for (List<Object> row : allRows) {
             if (row.size() < 5) continue;
@@ -292,7 +372,6 @@ public class SheetsService {
                     if (cheat) {
                         stats.get(name)[3]++;
                     } else if (injury) {
-                        stats.get(name)[4] = 1;
                         if (diet) stats.get(name)[1]++;
                     }else {
                         if (exercise) stats.get(name)[0]++;
@@ -304,25 +383,30 @@ public class SheetsService {
         }
         return stats;
     }
-    public static List<List<Object>> buildStatsRows(List<String> members, Map<String, int[]> stats, int totalDays, String title, String mvpLabel) {
+    public static List<List<Object>> buildStatsRows(List<String> members, Map<String, int[]> stats, int totalDays, String title, String mvpLabel, Map<String, List<String>> exclusions) {
         List<String[]> resultRows = new ArrayList<>();
         for (String member : members) {
             int[] s = stats.get(member);
             int cheatCount = Math.min(s[3], 1);
-            boolean hasInjury = s[4] == 1;
-            int effectiveDays = totalDays - cheatCount;
-            String cheatStatus = hasInjury ? "-" : s[3] == 0 ? "미사용" : s[3] == 1 ? "사용" : "초과";
 
-            double rate = hasInjury ? -1 :
+            List<String> reasons = exclusions.getOrDefault(member, new ArrayList<>());
+            boolean hasExclusion = !reasons.isEmpty();
+            String reasonText = String.join(", ", reasons);
+
+            int effectiveDays = totalDays - cheatCount;
+            String cheatStatus = hasExclusion ? "-" : s[3] == 0 ? "미사용" : s[3] == 1 ? "사용" : "초과";
+
+            double rate = hasExclusion ? -1 :
                     effectiveDays == 0 ? 0 : (Math.min(s[2] + cheatCount, totalDays) / (double) totalDays) * 100;
 
             resultRows.add(new String[]{
                     member,
-                    hasInjury ? "🤕" : s[0] + "/" + totalDays + "일",
+                    s[0] + "/" + totalDays + "일",
                     s[1] + "/" + totalDays + "일",
-                    hasInjury ? "-" : s[2] + "/" + totalDays + "일",
+                    hasExclusion ? "-" : s[2] + "/" + totalDays + "일",
                     cheatStatus,
-                    hasInjury ? "-" : String.format("%.0f%%", rate)
+                    hasExclusion ? "-" : String.format("%.0f%%", rate),
+                    reasonText
             });
 
         }
@@ -335,12 +419,7 @@ public class SheetsService {
 
         // 공동 1등 처리
         String topRate = resultRows.get(0)[5];
-        List<String> mvps = new ArrayList<>();
-        for (String[] r : resultRows) {
-            if (r[5].equals(topRate)) mvps.add(r[0]);
-            else break;
-        }
-        String mvpText = String.join(", ", mvps);
+        String mvpText = getMvpText(resultRows, 5);
 
         List<List<Object>> insertRows = createStatsHeader(title,mvpText,topRate,mvpLabel);
 
@@ -358,10 +437,19 @@ public class SheetsService {
             String[] r = resultRows.get(i);
             boolean memberHasInjury = r[5].equals("-");
             String rankStr = memberHasInjury ? "-" : rank + "위";
-            List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], r[4], r[5], rankStr, "", ""));
+            List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], r[4], r[5], rankStr, r[6], ""));
             insertRows.add(row);
         }
         insertRows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));
         return insertRows;
+    }
+    public static String getMvpText(List<String[]> resultRows, int rateIndex) {
+        String topRate = resultRows.get(0)[rateIndex];
+        List<String> mvps = new ArrayList<>();
+        for (String[] r : resultRows) {
+            if (r[rateIndex].equals(topRate)) mvps.add(r[0]);
+            else break;
+        }
+        return String.join(", ", mvps);
     }
 }

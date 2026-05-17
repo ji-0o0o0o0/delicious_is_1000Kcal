@@ -9,6 +9,8 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
+import static com.kakaotracker.SheetsService.getMvpText;
+
 public class MonthlyStatsUploader {
 
     private static final Logger logger = LoggerFactory.getLogger(MonthlyStatsUploader.class);
@@ -45,18 +47,17 @@ public class MonthlyStatsUploader {
 
                 Map<String, int[]> weekStats = SheetsService.calculateStats(service, spreadsheetId, members, effectiveStart, effectiveEnd);
 
-                Map<String, Integer> totalCheatCount = new LinkedHashMap<>();
-                for (String member : members) totalCheatCount.put(member, 0);
+                // 제외기간 읽기
+                Map<String, List<String>> weekExclusions = SheetsService.getExclusionReasons(service, spreadsheetId, effectiveStart, effectiveEnd);
 
                 for (String member : members) {
                     int weekCheat = Math.min(weekStats.get(member)[3], 1);
-                    boolean weekInjury = weekStats.get(member)[4] == 1;
+                    boolean weekExclusion = !weekExclusions.getOrDefault(member, new ArrayList<>()).isEmpty();
 
-                    if (weekInjury) {
+                    if (weekExclusion) {
                         injuryDays.put(member, injuryDays.get(member) + weekDays);
                     } else {
                         cheatBonus.put(member, cheatBonus.get(member) + weekCheat);
-                        totalCheatCount.put(member, totalCheatCount.get(member) + weekStats.get(member)[3]);
                     }
                 }
                 weekStart = weekStart.plusWeeks(1);
@@ -64,15 +65,26 @@ public class MonthlyStatsUploader {
 
             // 달성률 계산
             List<String[]> resultRows = new ArrayList<>();
+            Map<String, List<String>> exclusions = SheetsService.getExclusionReasons(service, spreadsheetId, firstDay, lastDay);
+
             for (String member : members) {
                 int[] s = totalStats.get(member);
                 int bonus = cheatBonus.get(member);
                 int effectiveTotalDays = totalDays - injuryDays.get(member);
                 double rate = effectiveTotalDays == 0 ? 0 : (Math.min(s[2] + bonus, effectiveTotalDays) / (double) effectiveTotalDays) * 100;
-
                 String cheatStatus = bonus == 0 ? "미사용" : bonus + "회";
 
-                String note = injuryDays.get(member) > 0 ? "부상 " + injuryDays.get(member) + "일 제외" : "";
+                // 비고
+                List<String> reasons = exclusions.getOrDefault(member, new ArrayList<>());
+                Map<String, Integer> reasonCount = new LinkedHashMap<>();
+                for (String r : reasons) {
+                    reasonCount.put(r, reasonCount.getOrDefault(r, 0) + 1);
+                }
+                List<String> displayList = new ArrayList<>();
+                for (Map.Entry<String, Integer> e : reasonCount.entrySet()) {
+                    displayList.add(e.getValue() > 1 ? e.getKey() + " " + e.getValue() + "주" : e.getKey());
+                }
+                String reasonText = String.join(", ", displayList);
 
                 resultRows.add(new String[]{
                         member,
@@ -81,7 +93,7 @@ public class MonthlyStatsUploader {
                         s[2] + "/" + effectiveTotalDays + "일",
                         cheatStatus,
                         String.format("%.0f%%", rate),
-                        note
+                        reasonText
                 });
             }
 
@@ -89,12 +101,7 @@ public class MonthlyStatsUploader {
 
             // 공동 1등 처리
             String topRate = resultRows.get(0)[5];
-            List<String> mvps = new ArrayList<>();
-            for (String[] r : resultRows) {
-                if (r[5].equals(topRate)) mvps.add(r[0]);
-                else break;
-            }
-            String mvpText = String.join(", ", mvps);
+            String mvpText = getMvpText(resultRows, 5);
 
             String title = String.format("## %d.%02d.%02d ~ %d.%02d.%02d (%d일)",
                     firstDay.getYear() % 100, firstDay.getMonthValue(), firstDay.getDayOfMonth(),
@@ -102,8 +109,8 @@ public class MonthlyStatsUploader {
                     totalDays);
 
             // 운동짱/식단짱 계산
-            String exerciseChamp = members.get(0);
-            String dietChamp = members.get(0);
+            List<String> exerciseChamps = new ArrayList<>();
+            List<String> dietChamps = new ArrayList<>();
             int maxExercise = 0;
             int maxDiet = 0;
 
@@ -111,13 +118,22 @@ public class MonthlyStatsUploader {
                 int[] s = totalStats.get(member);
                 if (s[0] > maxExercise) {
                     maxExercise = s[0];
-                    exerciseChamp = member;
+                    exerciseChamps.clear();
+                    exerciseChamps.add(member);
+                } else if (s[0] == maxExercise) {
+                    exerciseChamps.add(member);
                 }
                 if (s[1] > maxDiet) {
                     maxDiet = s[1];
-                    dietChamp = member;
+                    dietChamps.clear();
+                    dietChamps.add(member);
+                } else if (s[1] == maxDiet) {
+                    dietChamps.add(member);
                 }
             }
+
+            String exerciseChamp = String.join(", ", exerciseChamps);
+            String dietChamp = String.join(", ", dietChamps);
 
             List<List<Object>> insertRows = new ArrayList<>();
             insertRows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));

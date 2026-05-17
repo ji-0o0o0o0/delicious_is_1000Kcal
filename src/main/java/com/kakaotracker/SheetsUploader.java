@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class SheetsUploader {
@@ -86,6 +88,10 @@ public class SheetsUploader {
                         .execute();
 
                 logger.info("업로드 - {}, {}, {}", record.getDate(), record.getName(), record.getStatus());
+                if (record.isInjury()) {
+                    LocalDate recordDate = LocalDate.parse(record.getDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                    SheetsService.addExclusionIfAbsent(service, spreadsheetId, record.getName(), recordDate, "부상", "부상");
+                }
             }
             SheetsService.sortByDate(service, spreadsheetId);
             logger.info("날짜 기준 정렬 완료");

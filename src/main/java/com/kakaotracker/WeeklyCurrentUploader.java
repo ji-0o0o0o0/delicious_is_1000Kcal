@@ -31,6 +31,8 @@ public class WeeklyCurrentUploader {
             int daysPassed = (int) (lastDate.toEpochDay() - monday.toEpochDay()) + 1;
 
             Map<String, int[]> stats = SheetsService.calculateStats(service, spreadsheetId, members, monday, lastDate);
+            Map<String, List<String>> exclusions = SheetsService.getExclusionReasons(service, spreadsheetId, monday, lastDate);
+
 
             int weekNum = monday.get(WeekFields.of(Locale.KOREA).weekOfMonth());
             String title = String.format("## %d년 %d월 %d째주 현황 (%d.%02d~%d.%02d)",
@@ -38,7 +40,7 @@ public class WeeklyCurrentUploader {
                     monday.getMonthValue(), monday.getDayOfMonth(),
                     lastDate.getMonthValue(), lastDate.getDayOfMonth());
 
-            List<List<Object>> rows = SheetsService.buildStatsRows(members, stats, daysPassed, title, "🏆 현재 1위: ");
+            List<List<Object>> rows = SheetsService.buildStatsRows(members, stats, daysPassed, title, "🏆 현재 1위: ", exclusions);
 
             // 시트 전체 초기화 후 덮어쓰기
             SheetsService.ensureSheetTitle(service, spreadsheetId, CURRENT_SHEET, "📊 이번주 현황");

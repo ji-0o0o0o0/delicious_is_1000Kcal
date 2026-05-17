@@ -34,13 +34,17 @@ public class WeeklyStatsUploader {
 
             Map<String, int[]> stats = SheetsService.calculateStats(service, spreadsheetId, members, lastMonday, lastSunday);
 
+            // 제외기간 읽기
+            Map<String, List<String>> exclusions = SheetsService.getExclusionReasons(service, spreadsheetId, lastMonday, lastSunday);
+
+
             int weekNum = lastMonday.get(WeekFields.of(Locale.KOREA).weekOfMonth());
             String title = String.format("## %d년 %d월 %d째주 (%d.%02d~%d.%02d)",
                     lastMonday.getYear() % 100, lastMonday.getMonthValue(), weekNum,
                     lastMonday.getMonthValue(), lastMonday.getDayOfMonth(),
                     lastSunday.getMonthValue(), lastSunday.getDayOfMonth());
 
-            List<List<Object>> insertRows = SheetsService.buildStatsRows(members, stats, 7, title, "🏆 이번주 MVP: ");
+            List<List<Object>> insertRows = SheetsService.buildStatsRows(members, stats, 7, title, "🏆 이번주 MVP: ",exclusions);
 
             SheetsService.ensureSheetTitle(service, spreadsheetId, WEEKLY_SHEET, "📊 주간 통계");
             SheetsService.deleteExistingStats(service, spreadsheetId, WEEKLY_SHEET, title);

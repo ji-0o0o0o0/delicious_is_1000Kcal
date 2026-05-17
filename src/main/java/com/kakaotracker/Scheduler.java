@@ -40,6 +40,14 @@ public class Scheduler {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public void start() {
+        try {
+            Sheets service = SheetsService.getService();
+            String spreadsheetId = ConfigLoader.get("spreadsheet.id");
+            SheetsService.ensureExclusionHeader(service, spreadsheetId);
+        } catch (Exception e) {
+            logger.error("제외기간 헤더 생성 실패: {}", e.getMessage(), e);
+        }
+
         int intervalHours = ConfigLoader.getInt("scheduler.interval.hours");
         logger.info("스케줄러 시작 - {}시간마다 정시에 실행", intervalHours);
 
