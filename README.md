@@ -77,13 +77,18 @@
 
 ### 주간통계
 
-<img width="884" height="705" alt="주간통계" src="https://github.com/user-attachments/assets/681fa36f-a771-4856-ac2e-be442b4a7000" />
+<img width="884" height="705" alt="주간통계" src="https://github.com/user-attachments/assets/6e6b19a0-f84d-471b-8f49-7dd68e4a6ad8" />
 
 ---
 
 ### 월간통계
 
-<img width="887" height="703" alt="월간통계" src="https://github.com/user-attachments/assets/53b2dcda-3d65-4318-aee2-673d38458b82" />
+<img width="887" height="660" alt="월간통계" src="https://github.com/user-attachments/assets/06af1682-87e3-4114-87a4-bda9b0859cfc" />
+
+---
+### 제외기간
+
+<img width="800" height="780" alt="제외기간" src="https://github.com/user-attachments/assets/f0e57f27-b303-4978-ad57-05e0069067f1" />
 
 ---
 
@@ -128,7 +133,7 @@ UI 창 + 스케줄러 백그라운드 동시 실행
 | 종료 | 스케줄러 종료 후 앱 재실행 (새 jar 적용 시 사용) |
 
 
-<img width="500" height="300" alt="" src="https://github.com/user-attachments/assets/f3a1428b-0410-42b1-a862-954de31cc617" />
+<img width="500" height="300" alt="" src="https://github.com/user-attachments/assets/b7c02fd6-b917-4ada-9633-863c56cca640" />
 
 ---
 
