@@ -25,7 +25,7 @@ public class MainUI extends JFrame {
     public MainUI(Scheduler scheduler) {
         this.globalScheduler = scheduler;
         setTitle("🥗 delicious_is_1000Kcal Tracker");
-        setSize(600, 400);
+        setSize(700, 400);
         setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
         setLocationRelativeTo(null);
         initUI();
@@ -42,12 +42,10 @@ public class MainUI extends JFrame {
         topPanel.add(dateField);
 
         runButton = new JButton("▶ 실행");
-        runButton.setFont(new Font("맑은 고딕", Font.BOLD, 13));
         runButton.addActionListener(e -> onRun());
         topPanel.add(runButton);
 
         JButton logButton = new JButton("로그 보기");
-        logButton.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
         logButton.addActionListener(e -> {
             try {
                 Desktop.getDesktop().open(new File("logs/kakao-tracker.log"));
@@ -57,8 +55,29 @@ public class MainUI extends JFrame {
         });
         topPanel.add(logButton);
 
+        JButton configButton = new JButton("설정 열기");
+        configButton.addActionListener(e -> {
+            try {
+                String jarDir = new File(ConfigLoader.class.getProtectionDomain()
+                        .getCodeSource().getLocation().toURI()).getParent();
+                Desktop.getDesktop().open(new File(jarDir + "/config.properties"));
+            } catch (Exception ex) {
+                log("설정 파일을 열 수 없습니다: " + ex.getMessage());
+            }
+        });
+        topPanel.add(configButton);
+
+        JButton folderButton = new JButton("이미지 폴더");
+        folderButton.addActionListener(e -> {
+            try {
+                Desktop.getDesktop().open(new File(ConfigLoader.get("image.path.prefix")));
+            } catch (Exception ex) {
+                log("이미지 폴더를 열 수 없습니다: " + ex.getMessage());
+            }
+        });
+        topPanel.add(folderButton);
+
         JButton restartButton = new JButton("재시작");
-        restartButton.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
         restartButton.addActionListener(e -> {
             log("스케줄러 재시작...");
             if (globalScheduler != null) globalScheduler.stop();
@@ -69,7 +88,6 @@ public class MainUI extends JFrame {
         topPanel.add(restartButton);
 
         JButton exitButton = new JButton("종료");
-        exitButton.setFont(new Font("맑은 고딕", Font.PLAIN, 13));
         exitButton.addActionListener(e -> {
             try {
                 if (globalScheduler != null) globalScheduler.stop();
@@ -88,7 +106,6 @@ public class MainUI extends JFrame {
         // 로그 영역
         logArea = new JTextArea();
         logArea.setEditable(false);
-        logArea.setFont(new Font("맑은 고딕", Font.PLAIN, 12));
         JScrollPane scrollPane = new JScrollPane(logArea);
         add(scrollPane, BorderLayout.CENTER);
     }
