@@ -11,6 +11,7 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.net.URL;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -58,9 +59,17 @@ public class MainUI extends JFrame {
         JButton configButton = new JButton("설정 열기");
         configButton.addActionListener(e -> {
             try {
+                // 외부 config 먼저 찾기
                 String jarDir = new File(ConfigLoader.class.getProtectionDomain()
                         .getCodeSource().getLocation().toURI()).getParent();
-                Desktop.getDesktop().open(new File(jarDir + "/config.properties"));
+                File configFile = new File(jarDir + "/config.properties");
+
+                // 없으면 내부 리소스 경로
+                if (!configFile.exists()) {
+                    URL url = ConfigLoader.class.getClassLoader().getResource("config.properties");
+                    if (url != null) configFile = new File(url.toURI());
+                }
+                Desktop.getDesktop().open(configFile);
             } catch (Exception ex) {
                 log("설정 파일을 열 수 없습니다: " + ex.getMessage());
             }

@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ImageParser {
 
@@ -45,18 +46,43 @@ public class ImageParser {
             return new ArrayList<>();
         }
         tesseract.setDatapath(tessDataPath);
-        tesseract.setLanguage("kor");
+        tesseract.setDatapath(tessDataPath);
 
-        String text="";
+// 1차: kor
+        tesseract.setLanguage("kor");
+        String text1 = "";
         try {
-            text = tesseract.doOCR(new File(imagePath));
-        }catch (TesseractException e){
+            text1 = tesseract.doOCR(new File(imagePath));
+        } catch (TesseractException e) {
             logger.error("OCR 실패:{}", e.getMessage());
             return new ArrayList<>();
         }
+        logger.info("OCR 결과 : \n {}", text1);
+        List<CommentRecord> records1 = parseText(text1, date, members);
 
-        logger.info("OCR 결과 : \n {}",text);
-        return parseText(text,date,members);
+        // kor에서 못 찾은 멤버 확인
+        List<String> foundMembers = records1.stream()
+                .map(CommentRecord::getName)
+                .toList();
+        List<String> missingMembers = members.stream()
+                .filter(m -> !foundMembers.contains(m))
+                .collect(Collectors.toList());
+
+        // 2차:kor+eng (못 찾은 멤버가 있을 때만)
+        if (!missingMembers.isEmpty()) {
+            tesseract.setLanguage("kor+eng");
+            String text2 = "";
+            try {
+                text2 = tesseract.doOCR(new File(imagePath));
+            } catch (TesseractException e) {
+                logger.error("OCR 2차 실패:{}", e.getMessage());
+            }
+            logger.info("OCR 2차 결과 : \n {}", text2);
+            List<CommentRecord> records2 = parseText(text2, date, missingMembers);
+            records1.addAll(records2);
+        }
+
+        return records1;
 
     }
 
@@ -113,7 +139,11 @@ public class ImageParser {
                     currentName = null;
                     continue;
                 }
-
+                if (exerciseFail && dietFail) {
+                    records.add(new CommentRecord(date, currentName, false, false, false, false));
+                    currentName = null;
+                    continue;
+                }
 
                 if (hasExercise || hasDiet) {
                     records.add(new CommentRecord(date, currentName, hasExercise, hasDiet, false,false));
