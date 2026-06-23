@@ -78,7 +78,30 @@ public class ImageParser {
                 logger.error("OCR 2차 실패:{}", e.getMessage());
             }
             logger.info("OCR 2차 결과 : \n {}", text2);
-            List<CommentRecord> records2 = parseText(text2, date, missingMembers);
+
+            // 줄 번호 기준으로 이름은 2차에서, 댓글은 1차에서 가져오기
+            String[] lines1 = text1.split("\n");
+            String[] lines2 = text2.split("\n");
+            int minLen = Math.min(lines1.length, lines2.length);
+
+            // 2차에서 영어 이름 찾으면 1차 텍스트의 해당 줄을 이름으로 교체
+            StringBuilder mergedText = new StringBuilder();
+            for (int i = 0; i < lines1.length; i++) {
+                if (i < minLen) {
+                    String line2 = lines2[i].trim();
+                    // 2차에서 영어 이름 감지되면 해당 줄 교체
+                    boolean hasEnglishMember = missingMembers.stream().anyMatch(line2::contains);
+                    if (hasEnglishMember) {
+                        mergedText.append(line2).append("\n");
+                    } else {
+                        mergedText.append(lines1[i]).append("\n");
+                    }
+                } else {
+                    mergedText.append(lines1[i]).append("\n");
+                }
+            }
+
+            List<CommentRecord> records2 = parseText(mergedText.toString(), date, missingMembers);
             records1.addAll(records2);
         }
 
