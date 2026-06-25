@@ -26,7 +26,7 @@ public class MainUI extends JFrame {
     public MainUI(Scheduler scheduler) {
         this.globalScheduler = scheduler;
         setTitle("🥗 delicious_is_1000Kcal Tracker");
-        setSize(700, 400);
+        setSize(750, 400);
         setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
         setLocationRelativeTo(null);
         initUI();

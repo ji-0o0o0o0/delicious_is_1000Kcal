@@ -90,7 +90,8 @@ public class ImageParser {
                 if (i < minLen) {
                     String line2 = lines2[i].trim();
                     // 2차에서 영어 이름 감지되면 해당 줄 교체
-                    boolean hasEnglishMember = missingMembers.stream().anyMatch(line2::contains);
+                    boolean hasEnglishMember = missingMembers.stream()
+                            .anyMatch(m -> line2.toUpperCase().contains(m.toUpperCase()));
                     if (hasEnglishMember) {
                         mergedText.append(line2).append("\n");
                     } else {
@@ -119,7 +120,7 @@ public class ImageParser {
             if (line.isEmpty()) continue;
 
             for (String member : members) {
-                if (line.contains(member)) {
+                if (line.toUpperCase().contains(member.toUpperCase())) {
                     currentName = member;
                     break;
                 }
