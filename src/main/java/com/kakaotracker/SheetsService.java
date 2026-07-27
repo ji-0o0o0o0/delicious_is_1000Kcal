@@ -237,7 +237,7 @@ public class SheetsService {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         for (List<Object> row : values) {
             if (row.size() < 5) continue;
-            String name = row.get(0).toString();
+            String name = row.get(0).toString().trim();
             try {
                 LocalDate excStart = LocalDate.parse(row.get(1).toString(), fmt);
                 LocalDate excEnd = LocalDate.parse(row.get(2).toString(), fmt);
@@ -306,7 +306,7 @@ public class SheetsService {
         int endRow = -1;
         for (int i = 0; i < values.size(); i++) {
             if (!values.get(i).isEmpty() && values.get(i).get(0).toString().equals(title)) {
-                startRow = i;
+                if (startRow == -1) startRow = i; // 처음 찾은 것만 사용
             }
             // 다음 ## 제목 찾기 (끝 범위)
             if (startRow != -1 && i > startRow && !values.get(i).isEmpty()
@@ -323,7 +323,7 @@ public class SheetsService {
 
         DeleteDimensionRequest deleteRequest = new DeleteDimensionRequest()
                 .setRange(new DimensionRange()
-                        .setSheetId(getSheetId(service, spreadsheetId, sheetName))
+                        .setSheetId(getSheetId(service, spreadsheetId,  sheetName))
                         .setDimension("ROWS")
                         .setStartIndex(deleteStart)
                         .setEndIndex(endRow + 1));
@@ -338,7 +338,7 @@ public class SheetsService {
         List<List<Object>> rows = new ArrayList<>();
         rows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));
         rows.add(Arrays.asList(title, "","", mvpLabel + mvpText + " (" + topRate + ")", "", "", "", "", ""));
-        rows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "치팅여부", "달성률", "순위", "비고", ""));
+        rows.add(Arrays.asList("이름", "운동 달성", "식단 달성", "둘다 달성", "치팅여부", "점수", "달성률", "순위", "비고", ""));
         return rows;
     }
 
@@ -369,11 +369,12 @@ public class SheetsService {
             try {
                 LocalDate date = LocalDate.parse(dateStr, fmt);
                 if (!date.isBefore(startDate) && !date.isAfter(endDate) && stats.containsKey(name)) {
+
                     if (cheat) {
                         stats.get(name)[3]++;
                     } else if (injury) {
                         if (diet) stats.get(name)[1]++;
-                    }else {
+                    } else {
                         if (exercise) stats.get(name)[0]++;
                         if (diet) stats.get(name)[1]++;
                         if (exercise && diet) stats.get(name)[2]++;
@@ -396,8 +397,15 @@ public class SheetsService {
             int effectiveDays = totalDays - cheatCount;
             String cheatStatus = hasExclusion ? "-" : s[3] == 0 ? "미사용" : s[3] == 1 ? "사용" : "초과";
 
+            double score = s[2] * 1.0
+                    + (s[0] - s[2]) * 0.5
+                    + (s[1] - s[2]) * 0.5
+                    + cheatCount;
+
             double rate = hasExclusion ? -1 :
-                    effectiveDays == 0 ? 0 : (Math.min(s[2] + cheatCount, totalDays) / (double) totalDays) * 100;
+                    totalDays == 0 ? 0 : (score / totalDays) * 100;
+
+            String scoreStr = hasExclusion ? "-" : String.format("%.1f/%d", score, totalDays);
 
             resultRows.add(new String[]{
                     member,
@@ -405,6 +413,7 @@ public class SheetsService {
                     s[1] + "/" + totalDays + "일",
                     hasExclusion ? "-" : s[2] + "/" + totalDays + "일",
                     cheatStatus,
+                    scoreStr,  // 점수 추가
                     hasExclusion ? "-" : String.format("%.0f%%", rate),
                     reasonText
             });
@@ -412,14 +421,14 @@ public class SheetsService {
         }
 
         resultRows.sort((a, b) -> {
-            if (a[5].equals("-")) return 1;
-            if (b[5].equals("-")) return -1;
-            return Integer.parseInt(b[5].replace("%", "")) - Integer.parseInt(a[5].replace("%", ""));
+            if (a[6].equals("-")) return 1;
+            if (b[6].equals("-")) return -1;
+            return Integer.parseInt(b[6].replace("%", "")) - Integer.parseInt(a[6].replace("%", ""));
         });
 
         // 공동 1등 처리
-        String topRate = resultRows.get(0)[5];
-        String mvpText = getMvpText(resultRows, 5);
+        String topRate = resultRows.get(0)[6];
+        String mvpText = getMvpText(resultRows, 6);
 
         List<List<Object>> insertRows = createStatsHeader(title,mvpText,topRate,mvpLabel);
 
@@ -427,8 +436,8 @@ public class SheetsService {
         int rank = 1;
         for (int i = 0; i < resultRows.size(); i++) {
             if (i > 0) {
-                String prevRate = resultRows.get(i-1)[5];
-                String currRate = resultRows.get(i)[5];
+                String prevRate = resultRows.get(i-1)[6];
+                String currRate = resultRows.get(i)[6];
                 if (!currRate.equals("-") && !prevRate.equals("-") &&
                         Integer.parseInt(currRate.replace("%", "")) < Integer.parseInt(prevRate.replace("%", ""))) {
                     rank = i + 1;
@@ -437,7 +446,7 @@ public class SheetsService {
             String[] r = resultRows.get(i);
             boolean memberHasInjury = r[5].equals("-");
             String rankStr = memberHasInjury ? "-" : rank + "위";
-            List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], r[4], r[5], rankStr, r[6], ""));
+            List<Object> row = new ArrayList<>(Arrays.asList(r[0], r[1], r[2], r[3], r[4], r[5], r[6], rankStr, r[7], ""));
             insertRows.add(row);
         }
         insertRows.add(Arrays.asList("", "", "", "", "", "", "", "", ""));
@@ -451,5 +460,26 @@ public class SheetsService {
             else break;
         }
         return String.join(", ", mvps);
+    }
+    public static List<Object[]> loadExclusionPeriods(Sheets service, String spreadsheetId) throws Exception {
+        ValueRange response = service.spreadsheets().values()
+                .get(spreadsheetId, "제외기간!A:E")
+                .execute();
+
+        List<List<Object>> values = response.getValues();
+        List<Object[]> periods = new ArrayList<>();
+        if (values == null) return periods;
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        for (List<Object> row : values) {
+            if (row.size() < 5) continue;
+            String name = row.get(0).toString().trim();
+            try {
+                LocalDate start = LocalDate.parse(row.get(1).toString(), fmt);
+                LocalDate end = LocalDate.parse(row.get(2).toString(), fmt);
+                periods.add(new Object[]{name, start, end});
+            } catch (Exception ignored) {}
+        }
+        return periods;
     }
 }

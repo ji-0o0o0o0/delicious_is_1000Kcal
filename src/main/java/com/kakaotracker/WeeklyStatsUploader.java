@@ -32,11 +32,8 @@ public class WeeklyStatsUploader {
             }
             LocalDate lastSunday = lastMonday.plusDays(6);
 
-            Map<String, int[]> stats = SheetsService.calculateStats(service, spreadsheetId, members, lastMonday, lastSunday);
-
-            // 제외기간 읽기
             Map<String, List<String>> exclusions = SheetsService.getExclusionReasons(service, spreadsheetId, lastMonday, lastSunday);
-
+            Map<String, int[]> stats = SheetsService.calculateStats(service, spreadsheetId, members, lastMonday, lastSunday);
 
             int weekNum = lastMonday.get(WeekFields.of(Locale.KOREA).weekOfMonth());
             String title = String.format("## %d년 %d월 %d째주 (%d.%02d~%d.%02d)",

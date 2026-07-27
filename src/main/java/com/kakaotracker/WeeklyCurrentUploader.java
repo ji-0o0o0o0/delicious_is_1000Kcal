@@ -30,8 +30,8 @@ public class WeeklyCurrentUploader {
 
             int daysPassed = (int) (lastDate.toEpochDay() - monday.toEpochDay()) + 1;
 
-            Map<String, int[]> stats = SheetsService.calculateStats(service, spreadsheetId, members, monday, lastDate);
             Map<String, List<String>> exclusions = SheetsService.getExclusionReasons(service, spreadsheetId, monday, lastDate);
+            Map<String, int[]> stats = SheetsService.calculateStats(service, spreadsheetId, members, monday, lastDate);
 
 
             int weekNum = monday.get(WeekFields.of(Locale.KOREA).weekOfMonth());
